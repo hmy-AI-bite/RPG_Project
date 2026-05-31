@@ -3,5 +3,5 @@
     <Platform Name="x64" />
     <Platform Name="x86" />
   </Configurations>
-  <Project Path="RPG_Project/RPG_Project.vcxproj" />
+  <Project Path="RPG_Project/RPG_Project.vcxproj" Id="975a7d6c-d645-4ed5-bcc0-c2d9728f2f71" />
 </Solution>
