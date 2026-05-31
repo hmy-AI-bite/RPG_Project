@@ -131,7 +131,7 @@
     <ClCompile Include="Character.cpp" />
     <ClCompile Include="Skill.cpp" />
     <ClCompile Include="Enemy.cpp" />
-    <ClCompile Include="源Item.cpp" />
+    <ClCompile Include="Item.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Character.h" />
