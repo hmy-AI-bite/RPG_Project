@@ -127,19 +127,25 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="DamageSystem.cpp" />
     <ClCompile Include="GameManager.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Character.cpp" />
+    <ClCompile Include="Monster.cpp" />
     <ClCompile Include="Skill.cpp" />
-    <ClCompile Include="Enemy.cpp" />
     <ClCompile Include="Item.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Character.h" />
-    <ClInclude Include="Enemy.h" />
+    <ClInclude Include="DamageSystem.h" />
     <ClInclude Include="GameManager.h" />
+    <ClInclude Include="Monster.h" />
     <ClInclude Include="Skill.h" />
     <ClInclude Include="Item.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="MENU_GUIDE.txt" />
+    <Text Include="MENU_VERIFICATION.txt" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

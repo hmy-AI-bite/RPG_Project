@@ -24,21 +24,21 @@
     <ClCompile Include="Skill.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="Enemy.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="Item.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="GameManager.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="DamageSystem.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="Monster.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Character.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="Enemy.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="Skill.h">
@@ -50,5 +50,15 @@
     <ClInclude Include="GameManager.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="DamageSystem.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="Monster.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="MENU_GUIDE.txt" />
+    <Text Include="MENU_VERIFICATION.txt" />
   </ItemGroup>
 </Project>
