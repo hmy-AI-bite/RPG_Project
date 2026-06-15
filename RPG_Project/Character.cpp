@@ -1,4 +1,5 @@
 #include "Character.h"
+#include "Inventory.h"
 #include <iostream>
 
 // ===== Character 类实现 =====
@@ -82,7 +83,7 @@ void Character::DisplayInfo() const
 
 // ===== Player 类实现 =====
 Player::Player(const std::string& name, int maxHp, int attackPower, int defend, int level)
-    : Character(name, maxHp, attackPower, defend, level), experience(0), maxMp(50), mp(maxMp)
+    : Character(name, maxHp, attackPower, defend, level), experience(0), maxMp(50), mp(maxMp), gold(100)
 {
     // 战士属性设定：均衡型，能抗能打
     this->maxHp = 120;  // 生命值中等

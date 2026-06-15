@@ -1,6 +1,7 @@
 #pragma once
 #include <string>
 #include "DamageSystem.h"
+#include "Inventory.h"
 
 // 行动条相关常数
 const int MAX_GAUGE = 500;
@@ -63,6 +64,11 @@ public:
     void SetElementType(ElementType type) { elementType = type; }
     void SetPhysicalResistance(double value) { resistance.physicalResistance = value; }
     void SetMagicalResistance(double value) { resistance.magicalResistance = value; }
+    void SetAttackPower(int value) { attackPower = value; }
+    void SetHp(int value) { hp = value; }
+    void SetMaxHp(int value) { maxHp = value; }
+    void SetLevel(int value) { level = value; }
+    void SetDefend(int value) { defend = value; }
 };
 
 class Player : public Character
@@ -73,12 +79,18 @@ protected:
     int maxMp;
 
 public:
+    Inventory inventory;  // 玩家背包
+    int gold;              // 玩家金币
+
+public:
     Player(const std::string& name, int maxHp, int attackPower, int defend, int level);
     virtual ~Player();
     
     void GainExperience(int exp);
     void LevelUp();
     virtual void DisplayInfo() const override;
+    
+    Inventory& GetInventory() { return inventory; }
     
     // 蓝量相关
     void ConsumeMp(int amount);
@@ -91,6 +103,13 @@ public:
     int GetExperience() const { return experience; }
     int GetMp() const { return mp; }
     int GetMaxMp() const { return maxMp; }
+    int GetGold() const { return gold; }
+    
+    // setter（用于存档系统）
+    void SetMp(int value) { mp = value; }
+    void SetMaxMp(int value) { maxMp = value; }
+    void SetExperience(int value) { experience = value; }
+    void SetGold(int value) { gold = value; }
 };
 
 class Braver : public Player
