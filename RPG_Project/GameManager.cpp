@@ -1,9 +1,14 @@
 #include "GameManager.h"
+#include "SaveLoadManager.h"
+#include "Shop.h"
+
 #include <iostream>
 #include <iomanip>
 
 GameManager::GameManager() : currentCharacter(nullptr)
 {
+    // 加载排行榜
+    SaveLoadManager::LoadLeaderboard();
 }
 
 GameManager::~GameManager()
@@ -150,6 +155,11 @@ void GameManager::DisplayMainMenu() const
     std::cout << "║ 9. 查看行动条                                                  ║" << std::endl;
     std::cout << "║ A. 查看怪物列表                                                ║" << std::endl;
     std::cout << "║ T. 测试史莱姆战斗                                              ║" << std::endl;
+    std::cout << "║ S. 保存游戏                                                    ║" << std::endl;
+    std::cout << "║ L. 加载游戏                                                    ║" << std::endl;
+    std::cout << "║ B. 显示排行榜                                                  ║" << std::endl;
+    std::cout << "║ I. 打开背包                                                    ║" << std::endl;
+    std::cout << "║ P. 进入商店                                                    ║" << std::endl;
     std::cout << "║ R. 刷新面板                                                    ║" << std::endl;
     std::cout << "║ 0. 退出游戏                                                    ║" << std::endl;
     std::cout << "╚════════════════════════════════════════════════════════════════╝" << std::endl;
@@ -176,7 +186,7 @@ void GameManager::DisplayCharacterList() const
 
 void GameManager::HandleAction()
 {
-    int choice;
+    char choice;
     std::cin >> choice;
 
     if (!currentCharacter) return;
@@ -185,7 +195,7 @@ void GameManager::HandleAction()
 
     switch (choice)
     {
-    case 1:
+    case '1':
         DisplayCharacterList();
         int charIndex;
         if (std::cin >> charIndex)
@@ -194,7 +204,7 @@ void GameManager::HandleAction()
         }
         break;
 
-    case 2:
+    case '2':
     {
         // 普通攻击
         if (player)
@@ -243,7 +253,7 @@ void GameManager::HandleAction()
     }
     break;
 
-    case 3:
+    case '3':
     {
         // 造成伤害（测试）
         std::cout << "请输入伤害值: ";
@@ -256,7 +266,7 @@ void GameManager::HandleAction()
     }
     break;
 
-    case 4:
+    case '4':
     {
         // 治疗当前角色
         std::cout << "请输入治疗量: ";
@@ -269,7 +279,7 @@ void GameManager::HandleAction()
     }
     break;
 
-    case 5:
+    case '5':
         // 恢复蓝量
         if (player)
         {
@@ -287,7 +297,7 @@ void GameManager::HandleAction()
         }
         break;
 
-    case 6:
+    case '6':
     {
         // 释放职业技能
         if (player)
@@ -364,7 +374,7 @@ void GameManager::HandleAction()
     }
     break;
 
-    case 7:
+    case '7':
         ClearScreen();
         std::cout << "╔════════════════════════════════════════════════════════════════╗" << std::endl;
         std::cout << "║                      角色详细信息                             ║" << std::endl;
@@ -378,11 +388,11 @@ void GameManager::HandleAction()
         std::cin.get();
         break;
 
-    case 8:
+    case '8':
         DemonstrateDamageSystem();
         break;
 
-    case 9:
+    case '9':
     {
         // 查看行动条
         ClearScreen();
@@ -430,12 +440,169 @@ void GameManager::HandleAction()
         std::cin.get();
         break;
 
+    case 'S':
+    case 's':
+    {
+        // 保存游戏
+        Player* player = dynamic_cast<Player*>(currentCharacter.get());
+        if (player)
+        {
+            SaveLoadManager::SaveGame(*player);
+        }
+        else
+        {
+            std::cout << "当前角色无法保存！" << std::endl;
+        }
+        std::cout << "按任意键继续...";
+        std::cin.ignore();
+        std::cin.get();
+    }
+    break;
+
+    case 'L':
+    case 'l':
+    {
+        // 加载游戏
+        Player* player = dynamic_cast<Player*>(currentCharacter.get());
+        if (player)
+        {
+            if (SaveLoadManager::LoadGame(*player))
+            {
+                std::cout << "存档加载成功！" << std::endl;
+            }
+        }
+        else
+        {
+            std::cout << "当前角色无法加载存档！" << std::endl;
+        }
+        std::cout << "按任意键继续...";
+        std::cin.ignore();
+        std::cin.get();
+    }
+    break;
+
+    case 'B':
+    case 'b':
+    {
+        // 显示排行榜
+        SaveLoadManager::ShowLeaderboard();
+        std::cout << "按任意键继续...";
+        std::cin.ignore();
+        std::cin.get();
+    }
+    break;
+
+    case 'I':
+    case 'i':
+    {
+        // 打开背包
+        Player* player = dynamic_cast<Player*>(currentCharacter.get());
+        if (player)
+        {
+            ClearScreen();
+            std::cout << "╔════════════════════════════════════════════════════════════════╗" << std::endl;
+            std::cout << "║                        背包界面                                ║" << std::endl;
+            std::cout << "╠════════════════════════════════════════════════════════════════╣" << std::endl;
+            player->GetInventory().ShowInventory();
+            std::cout << "╠════════════════════════════════════════════════════════════════╣" << std::endl;
+            std::cout << "║ 输入道具序号使用道具（按 Q 退出）: ";
+            
+            char input;
+            std::cin >> input;
+            if (input != 'Q' && input != 'q')
+            {
+                int index = input - '0';
+                player->GetInventory().UseItem(index, player);
+            }
+        }
+        else
+        {
+            std::cout << "当前角色不是玩家！" << std::endl;
+            std::cout << "按任意键继续...";
+            std::cin.ignore();
+            std::cin.get();
+        }
+    }
+    break;
+
+    case 'P':
+    case 'p':
+    {
+        // 进入商店
+        Player* player = dynamic_cast<Player*>(currentCharacter.get());
+        if (player)
+        {
+            Shop shop;
+            bool inShop = true;
+            
+            while (inShop)
+            {
+                ClearScreen();
+                std::cout << "========================================================" << std::endl;
+                std::cout << "                    商店界面" << std::endl;
+                std::cout << "========================================================" << std::endl;
+                std::cout << " 当前金币: " << player->GetGold() << " 金" << std::endl;
+                std::cout << "========================================================" << std::endl;
+                shop.ShowShop();
+                std::cout << "========================================================" << std::endl;
+                std::cout << " B. 购买道具  S. 出售道具  Q. 退出商店" << std::endl;
+                std::cout << "========================================================" << std::endl;
+                std::cout << "请输入你的选择: ";
+                
+                char choice;
+                std::cin >> choice;
+                
+                switch (choice)
+                {
+                case 'B':
+                case 'b':
+                {
+                    std::cout << "请输入要购买的道具序号: ";
+                    int index;
+                    std::cin >> index;
+                    shop.BuyItem(*player, index);
+                    std::cout << "按任意键继续...";
+                    std::cin.ignore();
+                    std::cin.get();
+                }
+                break;
+                
+                case 'S':
+                case 's':
+                {
+                    std::cout << "请输入要出售的背包道具序号: ";
+                    int index;
+                    std::cin >> index;
+                    shop.SellItem(*player, index);
+                    std::cout << "按任意键继续...";
+                    std::cin.ignore();
+                    std::cin.get();
+                }
+                break;
+                
+                case 'Q':
+                case 'q':
+                    inShop = false;
+                    break;
+                }
+            }
+        }
+        else
+        {
+            std::cout << "当前角色不是玩家！" << std::endl;
+            std::cout << "按任意键继续...";
+            std::cin.ignore();
+            std::cin.get();
+        }
+    }
+    break;
+
     case 'R':
     case 'r':
         // 刷新面板，继续循环即可
         break;
 
-    case 0:
+    case '0':
         std::cout << "感谢游玩！再见！" << std::endl;
         exit(0);
         break;
@@ -674,5 +841,17 @@ void GameManager::TestSlime()
     slime2->PerformAction(currentCharacter.get());
 
     std::cout << std::endl << "║ 测试结束！" << std::endl;
+    
+    // 战斗胜利后给予经验值奖励
+    if (player)
+    {
+        int expReward = 50;  // 测试战斗奖励50经验
+        std::cout << "║ 战斗胜利！获得 " << expReward << " 经验值！" << std::endl;
+        player->GainExperience(expReward);
+        
+        // 记录排行榜
+        SaveLoadManager::AddScore(player->GetName(), player->GetExperience());
+    }
+    
     std::cout << "╚════════════════════════════════════════════════════════════════╝" << std::endl;
 }
