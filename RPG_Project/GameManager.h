@@ -5,40 +5,113 @@
 #include <vector>
 #include <memory>
 #include <cstdlib>
+#include <string>
 
+// ================================================================
+//  GameManager 类 - 游戏管理器
+//
+//  这是游戏的"总控制台"！
+//  负责管理：角色列表、怪物列表、主菜单、战斗循环
+//
+//  就像一个导演，协调所有演员（角色和怪物）的表演
+// ================================================================
 class GameManager
 {
 private:
+    // 所有角色列表（可以创建多个角色切换使用）
     std::vector<std::shared_ptr<Character>> characters;
+
+    // 当前选中的角色（玩家正在操作的这个）
     std::shared_ptr<Character> currentCharacter;
+
+    // 怪物列表（当前场景中的所有怪物）
     std::vector<std::shared_ptr<Enemy>> enemies;
 
 public:
     GameManager();
     ~GameManager();
 
-    // 角色管理
+    // ========== 角色管理 ==========
+
+    // 添加一个新角色到队伍中
     void AddCharacter(std::shared_ptr<Character> character);
+
+    // 切换当前操作的角色（通过索引）
     void SetCurrentCharacter(int index);
+
+    // 获取当前操作的角色
     std::shared_ptr<Character> GetCurrentCharacter() const { return currentCharacter; }
 
-    // 怪物管理
+    // ========== 怪物管理 ==========
+
+    // 添加一个怪物到场景中
     void AddEnemy(std::shared_ptr<Enemy> enemy);
+
+    // 显示所有怪物的信息
     void DisplayEnemies() const;
 
-    // 显示相关
+    // ========== 显示相关 ==========
+
+    // 清屏（Windows 用 cls，Linux/Mac 用 clear）
     void ClearScreen() const;
+
+    // 显示主控面板（角色的 HP/MP/行动条/属性）
     void DisplayDashboard() const;
+
+    // 显示主菜单（所有可用的操作）
     void DisplayMainMenu() const;
+
+    // 显示所有角色的列表
     void DisplayCharacterList() const;
 
-    // 游戏循环
+    // ========== 游戏主循环 ==========
+
+    // 开始游戏！不断显示面板→显示菜单→处理操作→循环
     void Run();
 
 private:
+    // 处理玩家的菜单选择
     void HandleAction();
+
+    // 刷新主控面板
     void UpdateDashboard() const;
+
+    // 演示伤害计算系统（展示物理/魔法/真实伤害的计算过程）
     void DemonstrateDamageSystem();
+
+    // 执行一次攻击（用于伤害演示）
     void PerformAttack(std::shared_ptr<Character> attacker, std::shared_ptr<Character> defender);
-    void TestSlime();  // 测试史莱姆
+
+    // 测试史莱姆战斗
+    void TestSlime();
+
+    // ========== ATB 战斗测试 ==========
+
+    // 测试1：ATB 1v1 - 手动操作 vs 史莱姆
+    void TestATB_1v1();
+
+    // 测试2：史莱姆分裂 - 属性继承验证
+    void TestSlimeSplit();
+
+    // 测试3：完整ATB战斗 - 多敌人+技能+分裂
+    void TestFullBattle();
+
+    // 测试4：三种职业对比 - 速度差异
+    void TestAllClasses();
+
+    // ========== UI 工具方法 ==========
+
+    // 等待玩家按任意键继续（防止画面一闪而过）
+    static void WaitForKeyPress();
+
+    // 画进度条（用于 HP/MP/行动条的可视化显示）
+    //   percent    = 百分比（0~100）
+    //   barLength  = 进度条长度（多少个字符）
+    //   filledChar = 已填充部分的字符（比如"█"）
+    //   emptyChar  = 未填充部分的字符（比如"░"）
+    static void DrawProgressBar(int percent, int barLength,
+        const std::string& filledChar, const std::string& emptyChar);
+
+    // 画分隔线（带标题）
+    static void DrawSeparator(const std::string& title = "");
 };
