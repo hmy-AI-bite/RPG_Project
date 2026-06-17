@@ -115,7 +115,8 @@ bool DamageCalculator::TriggerCritical(int agility)
 // ================================================================
 void DamageCalculator::ApplyDamageModifiers(DamageInfo& info, double& baseDamage,
     double skillRatio, int attackerLevel, int defenderLevel,
-    ElementType elementType, int agility, double resistanceValue)
+    ElementType elementType, ElementType defenderElement,
+    int agility, double resistanceValue)
 {
     // 第 1 步：应用技能倍率
     baseDamage *= skillRatio;
@@ -130,7 +131,7 @@ void DamageCalculator::ApplyDamageModifiers(DamageInfo& info, double& baseDamage
     info.baseDamage = baseDamage;
 
     // 第 4 步：属性克制
-    double elementBonus = GetElementBonus(elementType, ElementType::Neutral);
+    double elementBonus = GetElementBonus(elementType, defenderElement);
     info.elementBonus = elementBonus;
     baseDamage *= elementBonus;
 
@@ -177,6 +178,7 @@ DamageInfo DamageCalculator::CalculatePhysicalDamage(
     int defenderLevel,
     double skillRatio,
     ElementType elementType,
+    ElementType defenderElement,
     int agility,
     ResistanceProfile resistance)
 {
@@ -190,8 +192,8 @@ DamageInfo DamageCalculator::CalculatePhysicalDamage(
 
     // 经过流水线处理，得到最终伤害
     ApplyDamageModifiers(info, baseDamage, skillRatio,
-        attackerLevel, defenderLevel, elementType, agility,
-        resistance.physicalResistance);     // 使用物理抗性
+        attackerLevel, defenderLevel, elementType, defenderElement,
+        agility, resistance.physicalResistance);     // 使用物理抗性
 
     return info;
 }
@@ -218,6 +220,7 @@ DamageInfo DamageCalculator::CalculateMagicalDamage(
     int defenderLevel,
     double skillRatio,
     ElementType elementType,
+    ElementType defenderElement,
     int agility,
     ResistanceProfile resistance)
 {
@@ -240,8 +243,8 @@ DamageInfo DamageCalculator::CalculateMagicalDamage(
 
     // 经过流水线处理，得到最终伤害
     ApplyDamageModifiers(info, baseDamage, skillRatio,
-        attackerLevel, defenderLevel, elementType, agility,
-        resistance.magicalResistance);      // 使用魔法抗性
+        attackerLevel, defenderLevel, elementType, defenderElement,
+        agility, resistance.magicalResistance);      // 使用魔法抗性
 
     return info;
 }

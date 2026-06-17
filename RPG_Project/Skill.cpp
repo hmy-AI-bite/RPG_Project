@@ -36,6 +36,7 @@ DamageInfo PhysicalSkill::ExecuteSkill(Character* attacker, Character* defender)
         defender->GetLevel(),
         skillRatio,
         elementType,
+        defender->GetElementType(),
         attacker->GetAgility(),
         defender->GetResistance()
     );
@@ -61,6 +62,7 @@ DamageInfo MagicalSkill::ExecuteSkill(Character* attacker, Character* defender)
         defender->GetLevel(),
         skillRatio,
         elementType,
+        defender->GetElementType(),
         attacker->GetAgility(),
         defender->GetResistance()
     );

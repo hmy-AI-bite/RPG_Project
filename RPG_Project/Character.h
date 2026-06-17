@@ -196,9 +196,9 @@ public:
     Braver(const std::string& name);
     virtual ~Braver();
 
-    void RageAttack();              // 怒气斩击（消耗怒气造成大量伤害）
+    void RageAttack(Character* target);              // 怒气斩击（消耗怒气造成大量伤害）
     void IncreaseRage(int amount);  // 增加怒气（被打时触发）
-    void ExecuteTrueAttack();       // 刺客之刃（真实伤害，无视防御！）
+    void ExecuteTrueAttack(Character* target);       // 刺客之刃（真实伤害，无视防御！）
     virtual void DisplayInfo() const override;
 
     int GetRage() const { return rage; }

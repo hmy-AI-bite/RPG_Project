@@ -135,6 +135,7 @@ DamageInfo Character::PerformPhysicalAttack(Character* target, double skillRatio
         target->GetLevel(),             // 目标的等级
         skillRatio,                     // 技能倍率
         elementType,                    // 我的属性类型
+        target->GetElementType(),       // 目标的属性类型（用于属性克制判定）
         agility,                        // 我的灵巧（决定暴击率）
         target->GetResistance()         // 目标的抗性
     );
@@ -342,8 +343,10 @@ Braver::~Braver()
 
 // ---------- 怒气斩击 ----------
 // 消耗 50 点怒气，造成攻击力 × 2 + 怒气 ÷ 10 的伤害
-void Braver::RageAttack()
+void Braver::RageAttack(Character* target)
 {
+    if (!target) return;
+
     if (rage < 50)
     {
         std::cout << name << " 怒气不足！当前怒气: " << rage << "/100" << std::endl;
@@ -352,6 +355,7 @@ void Braver::RageAttack()
 
     int damage = attackPower * 2 + rage / 10;
     std::cout << name << " 使出怒气斩击！伤害: " << damage << std::endl;
+    target->TakeDamage(damage);     // 实际扣血！
     rage = 0;   // 怒气用完
 }
 
@@ -367,11 +371,23 @@ void Braver::IncreaseRage(int amount)
 
 // ---------- 刺客之刃（真实伤害）----------
 // 无视防御和抗性！伤害 = 30 + 攻击力 × 0.5
-void Braver::ExecuteTrueAttack()
+void Braver::ExecuteTrueAttack(Character* target)
 {
-    int trueDamage = static_cast<int>(30 + attackPower * 0.5);
-    std::cout << name << " 使出刺客之刃！造成真实伤害: " << trueDamage
+    if (!target) return;
+
+    // 使用伤害计算器生成真实伤害信息
+    DamageCalculator calculator;
+    DamageInfo info = calculator.CalculateTrueDamage(
+        30,                         // 固定伤害 30
+        attackPower,                // 攻击力
+        level,                      // 我的等级
+        target->GetLevel()          // 目标的等级
+    );
+
+    std::cout << name << " 使出刺客之刃！造成真实伤害: " << static_cast<int>(info.finalDamage)
               << " (无视防御!)" << std::endl;
+
+    target->TakeDamage(info);       // 实际扣血！
 }
 
 // ---------- 显示勇者信息 ----------

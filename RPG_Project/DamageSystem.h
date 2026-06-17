@@ -85,6 +85,7 @@ public:
         int defenderLevel,              // 防御者等级
         double skillRatio = 1.0,        // 技能倍率（默认 1.0 = 普通攻击）
         ElementType elementType = ElementType::Neutral,  // 攻击属性
+        ElementType defenderElement = ElementType::Neutral,  // 防御者属性
         int agility = 0,                // 攻击者灵巧（影响暴击率）
         ResistanceProfile resistance = ResistanceProfile()  // 防御者抗性
     );
@@ -101,6 +102,7 @@ public:
         int defenderLevel,              // 防御者等级
         double skillRatio = 1.0,        // 技能倍率
         ElementType elementType = ElementType::Neutral,  // 攻击属性
+        ElementType defenderElement = ElementType::Neutral,  // 防御者属性
         int agility = 0,                // 攻击者灵巧（影响暴击率）
         ResistanceProfile resistance = ResistanceProfile()  // 防御者抗性
     );
@@ -150,5 +152,6 @@ private:
     // 全部应用到基础伤害上，得到最终伤害
     void ApplyDamageModifiers(DamageInfo& info, double& baseDamage,
         double skillRatio, int attackerLevel, int defenderLevel,
-        ElementType elementType, int agility, double resistanceValue);
+        ElementType elementType, ElementType defenderElement,
+        int agility, double resistanceValue);
 };

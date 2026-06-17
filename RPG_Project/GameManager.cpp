@@ -405,7 +405,9 @@ void GameManager::HandleAction()
                 {
                     braver->ConsumeMp(20);
                     std::cout << "║ ";
-                    braver->ExecuteTrueAttack();
+                    // 如果有怪物，就打第一个怪物；否则打自己（测试用）
+                    Character* target = enemies.empty() ? currentCharacter.get() : enemies[0].get();
+                    braver->ExecuteTrueAttack(target);
                     std::cout << " ║" << std::endl;
                     std::cout << "║ 无视防御和抗性！" << std::endl;
                 }
@@ -779,6 +781,7 @@ void GameManager::PerformAttack(std::shared_ptr<Character> attacker, std::shared
         defender->GetLevel(),
         1.5,                            // 技能倍率 1.5
         attacker->GetElementType(),
+        defender->GetElementType(),
         attacker->GetAgility(),
         defender->GetResistance()
     );
@@ -802,6 +805,7 @@ void GameManager::PerformAttack(std::shared_ptr<Character> attacker, std::shared
         defender->GetLevel(),
         1.2,                            // 技能倍率 1.2
         attacker->GetElementType(),
+        defender->GetElementType(),
         attacker->GetAgility(),
         defender->GetResistance()
     );
