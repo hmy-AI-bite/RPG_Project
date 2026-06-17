@@ -170,7 +170,7 @@ void Character::DisplayInfo() const
 // 默认创建战士类型的玩家：
 //   血量 120、攻击 20、防御 10、蓝量 50、金币 100
 Player::Player(const std::string& name)
-    : Character(name, 120, 20, 10, 1), experience(0), maxMp(50), mp(50), gold(100)
+    : Character(name, 120, 20, 10, 1), experience(0), maxMp(50), mp(50), availableAP(0), gold(100)
 {
     // 战士属性：均衡型，能抗能打
     hp = maxHp;                 // 初始满血
@@ -184,37 +184,114 @@ Player::~Player()
 {
 }
 
+// ---------- 计算升级所需经验 ----------
+// 公式：level × 100
+//   1→2：100 经验
+//   5→6：500 经验
+//   10→11：1000 经验
+//   等级越高，升级越慢！
+int Player::GetExpToNextLevel() const
+{
+    return level * 100;
+}
+
 // ---------- 获得经验值 ----------
-// 每获得 100 经验就升一级！
+// 支持溢出经验连续升级！
+// 比如 250 经验，消耗 200 升一级，剩余 50 继续攒着
 void Player::GainExperience(int exp)
 {
     if (exp <= 0) return;
     experience += exp;
     std::cout << name << " 获得了 " << exp << " 点经验值！总经验: " << experience << std::endl;
 
-    // 经验 >= 100 就升级
-    if (experience >= 100)
+    // 只要经验够就连续升级（支持一次获得大量经验连升多级）
+    while (experience >= GetExpToNextLevel())
     {
         LevelUp();
     }
+
+    // 显示距离下一级还需要多少经验
+    int needExp = GetExpToNextLevel();
+    std::cout << name << " 当前经验: " << experience << "/" << needExp
+              << " (距下一级还需 " << (needExp - experience) << " 点经验)" << std::endl;
 }
 
-// ---------- 升级！----------
-// 消耗 100 经验，等级 +1，各项属性提升
+// ---------- 升级！（战士默认）----------
+// 每升一级获得 5 点可分配属性点（AP），由玩家自由分配到各属性
+// 升级后回满血蓝
 void Player::LevelUp()
 {
-    if (experience >= 100)
+    int needExp = GetExpToNextLevel();
+    if (experience >= needExp)
     {
-        experience -= 100;      // 消耗 100 经验
-        level++;                // 等级 +1
-        maxHp += 10;            // 最大血量 +10
-        hp = maxHp;             // 升级后回满血
-        maxMp += 10;            // 最大蓝量 +10
-        mp = maxMp;             // 升级后回满蓝
-        attackPower += 5;       // 攻击力 +5
-        defend += 2;            // 防御力 +2
-        std::cout << name << " 升级到 " << level << " 级！属性已增强！" << std::endl;
+        experience -= needExp;      // 消耗经验
+        level++;                    // 等级 +1
+        availableAP += 5;           // 获得 5 点可分配属性点
+
+        // 升级回满血蓝
+        hp = maxHp;
+        mp = maxMp;
+
+        std::cout << "════════════════════════════════════════" << std::endl;
+        std::cout << "  " << name << " 升级到 " << level << " 级！" << std::endl;
+        std::cout << "  获得 5 点可分配属性点 (AP)！" << std::endl;
+        std::cout << "  当前可用 AP: " << availableAP << std::endl;
+        std::cout << "  请前往属性分配界面手动加点！" << std::endl;
+        std::cout << "════════════════════════════════════════" << std::endl;
     }
+}
+
+// ---------- 分配属性点（战士）----------
+// 每点效果：
+//   [1] HP+8   [2] MP+5   [3] ATK+2   [4] DEF+1   [5] SPD+1   [6] 灵巧+1   [7] 法防+1
+bool Player::AllocateAttribute(int attrIndex)
+{
+    if (availableAP <= 0)
+    {
+        std::cout << "没有可分配的属性点！" << std::endl;
+        return false;
+    }
+
+    switch (attrIndex)
+    {
+    case 1: // 生命值上限 +8
+        maxHp += 8;
+        hp += 8;
+        std::cout << name << " 生命值上限 +8 → " << maxHp << std::endl;
+        break;
+    case 2: // 蓝量上限 +5
+        maxMp += 5;
+        mp += 5;
+        std::cout << name << " 蓝量上限 +5 → " << maxMp << std::endl;
+        break;
+    case 3: // 攻击力 +2
+        attackPower += 2;
+        std::cout << name << " 攻击力 +2 → " << attackPower << std::endl;
+        break;
+    case 4: // 防御力 +1
+        defend += 1;
+        std::cout << name << " 防御力 +1 → " << defend << std::endl;
+        break;
+    case 5: // 速度 +1
+        speed += 1;
+        std::cout << name << " 速度 +1 → " << speed << std::endl;
+        break;
+    case 6: // 灵巧 +1
+        agility += 1;
+        std::cout << name << " 灵巧 +1 → " << agility << std::endl;
+        break;
+    case 7: // 法防 +1
+        spellDefense += 1;
+        std::cout << name << " 法防 +1 → " << spellDefense << std::endl;
+        break;
+    default:
+        std::cout << "无效的属性编号！（有效范围: 1~7）" << std::endl;
+        return false;
+    }
+
+    availableAP--;
+    std::cout << "消耗 1 AP，剩余 " << availableAP << " AP" << std::endl;
+    return true;
 }
 
 // ---------- 消耗蓝量 ----------
@@ -390,6 +467,84 @@ void Braver::ExecuteTrueAttack(Character* target)
     target->TakeDamage(info);       // 实际扣血！
 }
 
+// ---------- 勇者专属升级 ----------
+// 每升一级获得 5 点可分配属性点（AP）
+// 勇者特色：高攻击成长方向
+void Braver::LevelUp()
+{
+    int needExp = GetExpToNextLevel();
+    if (experience >= needExp)
+    {
+        experience -= needExp;
+        level++;
+        availableAP += 5;           // 获得 5 点可分配属性点
+
+        // 升级回满血蓝
+        hp = maxHp;
+        mp = maxMp;
+
+        std::cout << "════════════════════════════════════════" << std::endl;
+        std::cout << "  " << name << " 升级到 " << level << " 级！" << std::endl;
+        std::cout << "  [勇者] 获得 5 点可分配属性点 (AP)！" << std::endl;
+        std::cout << "  [勇者] 当前可用 AP: " << availableAP << std::endl;
+        std::cout << "  请前往属性分配界面手动加点！" << std::endl;
+        std::cout << "════════════════════════════════════════" << std::endl;
+    }
+}
+
+// ---------- 勇者专属分配属性点 ----------
+// 每点效果（偏攻击向）：
+//   [1] HP+6   [2] MP+4   [3] ATK+3   [4] DEF+1   [5] SPD+2   [6] 灵巧+2   [7] 法防+1
+bool Braver::AllocateAttribute(int attrIndex)
+{
+    if (availableAP <= 0)
+    {
+        std::cout << "没有可分配的属性点！" << std::endl;
+        return false;
+    }
+
+    switch (attrIndex)
+    {
+    case 1: // 生命值上限 +6
+        maxHp += 6;
+        hp += 6;
+        std::cout << name << " 生命值上限 +6 → " << maxHp << std::endl;
+        break;
+    case 2: // 蓝量上限 +4
+        maxMp += 4;
+        mp += 4;
+        std::cout << name << " 蓝量上限 +4 → " << maxMp << std::endl;
+        break;
+    case 3: // 攻击力 +3（勇者最高！）
+        attackPower += 3;
+        std::cout << name << " 攻击力 +3 → " << attackPower << std::endl;
+        break;
+    case 4: // 防御力 +1
+        defend += 1;
+        std::cout << name << " 防御力 +1 → " << defend << std::endl;
+        break;
+    case 5: // 速度 +2
+        speed += 2;
+        std::cout << name << " 速度 +2 → " << speed << std::endl;
+        break;
+    case 6: // 灵巧 +2
+        agility += 2;
+        std::cout << name << " 灵巧 +2 → " << agility << std::endl;
+        break;
+    case 7: // 法防 +1
+        spellDefense += 1;
+        std::cout << name << " 法防 +1 → " << spellDefense << std::endl;
+        break;
+    default:
+        std::cout << "无效的属性编号！（有效范围: 1~7）" << std::endl;
+        return false;
+    }
+
+    availableAP--;
+    std::cout << "消耗 1 AP，剩余 " << availableAP << " AP" << std::endl;
+    return true;
+}
+
 // ---------- 显示勇者信息 ----------
 void Braver::DisplayInfo() const
 {
@@ -453,6 +608,88 @@ void Mage::CastSpell(int mpCost)
     std::cout << name << " 施放了火焰术！" << std::endl;
 }
 
+// ---------- 法师专属升级 ----------
+// 每升一级获得 5 点可分配属性点（AP）
+// 法师特色：法术强度成长方向
+void Mage::LevelUp()
+{
+    int needExp = GetExpToNextLevel();
+    if (experience >= needExp)
+    {
+        experience -= needExp;
+        level++;
+        availableAP += 5;           // 获得 5 点可分配属性点
+
+        // 升级回满血蓝
+        hp = maxHp;
+        mp = maxMp;
+
+        std::cout << "════════════════════════════════════════" << std::endl;
+        std::cout << "  " << name << " 升级到 " << level << " 级！" << std::endl;
+        std::cout << "  [法师] 获得 5 点可分配属性点 (AP)！" << std::endl;
+        std::cout << "  [法师] 当前可用 AP: " << availableAP << std::endl;
+        std::cout << "  请前往属性分配界面手动加点！" << std::endl;
+        std::cout << "════════════════════════════════════════" << std::endl;
+    }
+}
+
+// ---------- 法师专属分配属性点 ----------
+// 每点效果（偏法术向）：
+//   [1] HP+4   [2] MP+7   [3] ATK+1   [4] DEF+1   [5] SPD+2   [6] 灵巧+2   [7] 法防+2   [8] 法术强度+3
+bool Mage::AllocateAttribute(int attrIndex)
+{
+    if (availableAP <= 0)
+    {
+        std::cout << "没有可分配的属性点！" << std::endl;
+        return false;
+    }
+
+    switch (attrIndex)
+    {
+    case 1: // 生命值上限 +4
+        maxHp += 4;
+        hp += 4;
+        std::cout << name << " 生命值上限 +4 → " << maxHp << std::endl;
+        break;
+    case 2: // 蓝量上限 +7（法师最高！）
+        maxMp += 7;
+        mp += 7;
+        std::cout << name << " 蓝量上限 +7 → " << maxMp << std::endl;
+        break;
+    case 3: // 攻击力 +1
+        attackPower += 1;
+        std::cout << name << " 攻击力 +1 → " << attackPower << std::endl;
+        break;
+    case 4: // 防御力 +1
+        defend += 1;
+        std::cout << name << " 防御力 +1 → " << defend << std::endl;
+        break;
+    case 5: // 速度 +2
+        speed += 2;
+        std::cout << name << " 速度 +2 → " << speed << std::endl;
+        break;
+    case 6: // 灵巧 +2
+        agility += 2;
+        std::cout << name << " 灵巧 +2 → " << agility << std::endl;
+        break;
+    case 7: // 法防 +2
+        spellDefense += 2;
+        std::cout << name << " 法防 +2 → " << spellDefense << std::endl;
+        break;
+    case 8: // 法术强度 +3（法师核心！）
+        spellPower += 3;
+        std::cout << name << " 法术强度 +3 → " << spellPower << std::endl;
+        break;
+    default:
+        std::cout << "无效的属性编号！（有效范围: 1~8）" << std::endl;
+        return false;
+    }
+
+    availableAP--;
+    std::cout << "消耗 1 AP，剩余 " << availableAP << " AP" << std::endl;
+    return true;
+}
+
 // ---------- 显示法师信息 ----------
 void Mage::DisplayInfo() const
 {
@@ -466,4 +703,231 @@ void Mage::DisplayInfo() const
               << ", 速度: " << speed
               << ", 等级: " << level
               << ", 经验: " << experience << std::endl;
+}
+
+
+// ================================================================
+//  Guardian 类 - 守护骑士
+//  坦克定位：高血量、高防御、低攻击、低速度
+//  特有系统：护盾值（shield），可以抵挡伤害
+// ================================================================
+
+// ---------- 构造函数 ----------
+Guardian::Guardian(const std::string& name)
+    : Player(name), shield(0)
+{
+    // 守护骑士属性：坦克定位
+    maxHp = 150;                // 血量 150（最高！）
+    hp = maxHp;
+    attackPower = 18;           // 攻击 18（最低）
+    defend = 20;                // 防御 20（最高！）
+    agility = 30;               // 灵巧 30 → 暴击率 3%（低暴击率）
+    speed = 80;                 // 速度 80（最慢）
+    maxMp = 60;
+    mp = maxMp;
+    spellDefense = 10;          // 法防 10（较高）
+    elementType = ElementType::Earth;  // 地属性
+}
+
+Guardian::~Guardian()
+{
+}
+
+// ---------- 守护姿态 ----------
+// 消耗 15 MP，获得 30 点护盾值
+void Guardian::GuardStance()
+{
+    if (!HasEnoughMp(15))
+    {
+        std::cout << name << " 蓝量不足！需要 15 点蓝量，当前蓝量: " << mp << "/" << maxMp << std::endl;
+        return;
+    }
+
+    ConsumeMp(15);
+    shield += 30;
+    if (shield > MAX_SHIELD) shield = MAX_SHIELD;
+    std::cout << name << " 进入守护姿态！获得 30 点护盾！当前护盾: " << shield << "/" << MAX_SHIELD << std::endl;
+}
+
+// ---------- 圣光斩 ----------
+// 消耗 20 MP，对目标造成 1.2 倍物理伤害，同时自身回复 attackPower * 0.3 点血量
+void Guardian::HolySlash(Character* target)
+{
+    if (!target)
+    {
+        std::cout << "目标无效！" << std::endl;
+        return;
+    }
+
+    if (!HasEnoughMp(20))
+    {
+        std::cout << name << " 蓝量不足！需要 20 点蓝量，当前蓝量: " << mp << "/" << maxMp << std::endl;
+        return;
+    }
+
+    ConsumeMp(20);
+
+    // 调用 PerformPhysicalAttack 造成 1.2 倍物理伤害
+    PerformPhysicalAttack(target, 1.2, " 使出圣光斩！");
+
+    // 回复 attackPower * 0.3 点血量
+    int healAmount = static_cast<int>(attackPower * 0.3);
+    if (healAmount <= 0) healAmount = 1;
+    Heal(healAmount);
+}
+
+// ---------- 受到伤害（简单版）重写 ----------
+// 优先扣护盾，护盾归零后多余的伤害才扣血
+void Guardian::TakeDamage(int damage)
+{
+    if (damage <= 0) return;
+
+    int remaining = damage;
+
+    // 先扣护盾
+    if (shield > 0)
+    {
+        int absorbed = (shield >= remaining) ? remaining : shield;
+        shield -= absorbed;
+        remaining -= absorbed;
+        std::cout << name << " 的护盾抵挡了 " << absorbed << " 点伤害！当前护盾: " << shield << "/" << MAX_SHIELD << std::endl;
+    }
+
+    // 剩余伤害扣血
+    if (remaining > 0)
+    {
+        hp -= remaining;
+        if (hp < 0) hp = 0;
+        std::cout << name << " 受到了 " << remaining << " 点伤害！生命值: " << hp << "/" << maxHp << std::endl;
+    }
+    else
+    {
+        std::cout << name << " 毫发无伤！生命值: " << hp << "/" << maxHp << std::endl;
+    }
+}
+
+// ---------- 受到伤害（详细版）重写 ----------
+// 同样优先扣护盾，保留暴击信息
+void Guardian::TakeDamage(const DamageInfo& damageInfo)
+{
+    int damage = static_cast<int>(damageInfo.finalDamage);
+    if (damage <= 0) return;
+
+    int remaining = damage;
+
+    // 先扣护盾
+    if (shield > 0)
+    {
+        int absorbed = (shield >= remaining) ? remaining : shield;
+        shield -= absorbed;
+        remaining -= absorbed;
+        std::cout << name << " 的护盾抵挡了 " << absorbed << " 点伤害！当前护盾: " << shield << "/" << MAX_SHIELD << std::endl;
+    }
+
+    // 剩余伤害扣血
+    if (remaining > 0)
+    {
+        hp -= remaining;
+        if (hp < 0) hp = 0;
+        std::string criticalText = damageInfo.isCritical ? "【暴击】" : "";
+        std::cout << name << " 受到了 " << remaining << " 点伤害 " << criticalText
+                  << "！生命值: " << hp << "/" << maxHp << std::endl;
+    }
+    else
+    {
+        std::cout << name << " 毫发无伤！生命值: " << hp << "/" << maxHp << std::endl;
+    }
+}
+
+// ---------- 显示守护骑士信息 ----------
+void Guardian::DisplayInfo() const
+{
+    std::cout << "[守护骑士] " << name
+              << " | 生命值: " << hp << "/" << maxHp
+              << ", 蓝量: " << mp << "/" << maxMp
+              << ", 攻击: " << attackPower
+              << ", 防御: " << defend
+              << ", 灵巧: " << agility
+              << ", 速度: " << speed
+              << ", 等级: " << level
+              << ", 经验: " << experience
+              << ", 护盾: " << shield << "/" << MAX_SHIELD << std::endl;
+}
+
+// ---------- 守护骑士专属升级 ----------
+// 每升一级获得 5 点可分配属性点（AP）
+// 守护骑士特色：防御成长方向
+void Guardian::LevelUp()
+{
+    int needExp = GetExpToNextLevel();
+    if (experience >= needExp)
+    {
+        experience -= needExp;
+        level++;
+        availableAP += 5;           // 获得 5 点可分配属性点
+
+        // 升级回满血蓝
+        hp = maxHp;
+        mp = maxMp;
+
+        std::cout << "════════════════════════════════════════" << std::endl;
+        std::cout << "  " << name << " 升级到 " << level << " 级！" << std::endl;
+        std::cout << "  [守护骑士] 获得 5 点可分配属性点 (AP)！" << std::endl;
+        std::cout << "  [守护骑士] 当前可用 AP: " << availableAP << std::endl;
+        std::cout << "  请前往属性分配界面手动加点！" << std::endl;
+        std::cout << "════════════════════════════════════════" << std::endl;
+    }
+}
+
+// ---------- 守护骑士专属分配属性点 ----------
+// 每点效果（偏防御向）：
+//   [1] HP+12  [2] MP+5   [3] ATK+1   [4] DEF+3   [5] SPD+1   [6] 灵巧+1   [7] 法防+2
+bool Guardian::AllocateAttribute(int attrIndex)
+{
+    if (availableAP <= 0)
+    {
+        std::cout << "没有可分配的属性点！" << std::endl;
+        return false;
+    }
+
+    switch (attrIndex)
+    {
+    case 1: // 生命值上限 +12（守护骑士最高！）
+        maxHp += 12;
+        hp += 12;
+        std::cout << name << " 生命值上限 +12 → " << maxHp << std::endl;
+        break;
+    case 2: // 蓝量上限 +5
+        maxMp += 5;
+        mp += 5;
+        std::cout << name << " 蓝量上限 +5 → " << maxMp << std::endl;
+        break;
+    case 3: // 攻击力 +1
+        attackPower += 1;
+        std::cout << name << " 攻击力 +1 → " << attackPower << std::endl;
+        break;
+    case 4: // 防御力 +3（守护骑士最高！）
+        defend += 3;
+        std::cout << name << " 防御力 +3 → " << defend << std::endl;
+        break;
+    case 5: // 速度 +1
+        speed += 1;
+        std::cout << name << " 速度 +1 → " << speed << std::endl;
+        break;
+    case 6: // 灵巧 +1
+        agility += 1;
+        std::cout << name << " 灵巧 +1 → " << agility << std::endl;
+        break;
+    case 7: // 法防 +2
+        spellDefense += 2;
+        std::cout << name << " 法防 +2 → " << spellDefense << std::endl;
+        break;
+    default:
+        std::cout << "无效的属性编号！（有效范围: 1~7）" << std::endl;
+        return false;
+    }
+
+    availableAP--;
+    std::cout << "消耗 1 AP，剩余 " << availableAP << " AP" << std::endl;
+    return true;
 }

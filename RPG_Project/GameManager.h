@@ -69,6 +69,23 @@ public:
     // 开始游戏！不断显示面板→显示菜单→处理操作→循环
     void Run();
 
+    // ========== 测试方法（公开，供 main 调用）==========
+
+    // 测试6：元素克制快速验证（自动 PASS/FAIL）
+    void TestElementSystemQuick();
+
+    // 测试7：背包与道具快速验证（自动 PASS/FAIL）
+    void TestInventoryQuick();
+
+    // 测试8：完整战斗流程（交互式）
+    void TestFullBattleQuick();
+
+    // 初始化玩家背包（给初始道具）
+    void InitPlayerInventory(Player* player);
+
+    // 等待玩家按任意键继续（静态方法，方便外部调用）
+    static void WaitForKeyPress();
+
 private:
     // 处理玩家的菜单选择
     void HandleAction();
@@ -100,9 +117,6 @@ private:
     void TestAllClasses();
 
     // ========== UI 工具方法 ==========
-
-    // 等待玩家按任意键继续（防止画面一闪而过）
-    static void WaitForKeyPress();
 
     // 画进度条（用于 HP/MP/行动条的可视化显示）
     //   percent    = 百分比（0~100）

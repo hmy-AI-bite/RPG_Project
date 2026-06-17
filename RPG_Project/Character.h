@@ -125,6 +125,7 @@ protected:
     int experience;     // 经验值，攒够了就升级
     int mp;             // 当前蓝量（魔法值），放技能要消耗蓝
     int maxMp;          // 最大蓝量
+    int availableAP;    // 可分配属性点数（升级后获得，自由加点用）
 
     // 技能列表：玩家学会的所有技能都存在这里
     std::vector<std::shared_ptr<Skill>> skills;
@@ -138,11 +139,20 @@ public:
     Player(const std::string& name);
     virtual ~Player();
 
-    // 获得经验值，攒够 100 就自动升级
+    // 获得经验值，自动判断是否升级（支持连续升级）
     void GainExperience(int exp);
 
-    // 升级！血量、蓝量、攻击、防御都会提升
-    void LevelUp();
+    // 升级！各职业有不同的成长值（虚函数，子类可重写）
+    // 升级后获得可分配属性点，不再自动加属性
+    virtual void LevelUp();
+
+    // 分配属性点（手动加点，每次加1点到指定属性）
+    // 返回 true 表示分配成功，false 表示没有可用点数或属性无效
+    virtual bool AllocateAttribute(int attrIndex);
+
+    // 计算升级所需经验值（随等级递增）
+    // 公式：level × 100，比如 1→2 需要 100，5→6 需要 500
+    int GetExpToNextLevel() const;
 
     // 显示玩家详细信息
     virtual void DisplayInfo() const override;
@@ -174,18 +184,21 @@ public:
     int GetMp() const { return mp; }
     int GetMaxMp() const { return maxMp; }
     int GetGold() const { return gold; }
+    int GetAvailableAP() const { return availableAP; }
 
     // ========== Setter（用于存档系统）==========
     void SetMp(int value) { mp = value; }
     void SetMaxMp(int value) { maxMp = value; }
     void SetExperience(int value) { experience = value; }
     void SetGold(int value) { gold = value; }
+    void SetAvailableAP(int value) { availableAP = value; }
 };
 
 // ================================================================
 //  Braver 类 - 勇者（继承自 Player）
 //  特点：高攻击、低防御、高暴击率
 //  特有系统：怒气值（被打会涨怒气，怒气满了可以放大招）
+//  升级成长：ATK+7, HP+10, MP+6, SPD+3, 灵巧+5（攻击成长最高）
 // ================================================================
 class Braver : public Player
 {
@@ -200,6 +213,8 @@ public:
     void IncreaseRage(int amount);  // 增加怒气（被打时触发）
     void ExecuteTrueAttack(Character* target);       // 刺客之刃（真实伤害，无视防御！）
     virtual void DisplayInfo() const override;
+    virtual void LevelUp() override;                 // 勇者专属升级（获得 AP，可自由分配）
+    virtual bool AllocateAttribute(int attrIndex) override;  // 勇者专属加点
 
     int GetRage() const { return rage; }
 };
@@ -208,6 +223,7 @@ public:
 //  Mage 类 - 法师（继承自 Player）
 //  特点：低血量、低防御、高法术攻击力、超高暴击率
 //  特有属性：法术强度（spellPower）
+//  升级成长：spellPower+7, MP+12, SPD+4, 灵巧+3（法术成长最高）
 // ================================================================
 class Mage : public Player
 {
@@ -220,6 +236,46 @@ public:
 
     void CastSpell(int mpCost);     // 施放法术（消耗蓝量）
     virtual void DisplayInfo() const override;
+    virtual void LevelUp() override;                      // 法师专属升级（获得 AP，可自由分配）
+    virtual bool AllocateAttribute(int attrIndex) override;  // 法师专属加点
 
     int GetSpellPower() const { return spellPower; }
+};
+
+// ================================================================
+//  Guardian 类 - 守护骑士（继承自 Player）
+//  特点：高血量、低攻击、高防御、低速度、坦克定位
+//  特有属性：护盾值（shield），可以抵挡伤害
+//  属性：HP 150, ATK 18, DEF 20, AGI 30, SPD 80, MP 60
+//  属性类型：地（Earth）
+//  升级成长：HP+12, MP+5, ATK+1, DEF+3, SPD+1, 灵巧+1（防御成长最高）
+// ================================================================
+class Guardian : public Player
+{
+private:
+    int shield;     // 护盾值（0~50），可以抵挡伤害
+    static const int MAX_SHIELD = 50;
+
+public:
+    Guardian(const std::string& name);
+    virtual ~Guardian();
+
+    // 守护姿态：消耗 15 MP，获得 30 点护盾值
+    void GuardStance();
+
+    // 圣光斩：消耗 20 MP，造成 1.2 倍物理伤害，同时回复 attackPower * 0.3 点血量
+    void HolySlash(Character* target);
+
+    // 重写 TakeDamage：优先扣护盾，护盾归零后多余伤害才扣血
+    virtual void TakeDamage(int damage);
+    virtual void TakeDamage(const DamageInfo& damageInfo);
+
+    // 显示守护骑士信息（包括护盾值）
+    virtual void DisplayInfo() const override;
+
+    virtual void LevelUp() override;                      // 守护骑士专属升级（获得 AP，可自由分配）
+    virtual bool AllocateAttribute(int attrIndex) override;  // 守护骑士专属加点
+
+    int GetShield() const { return shield; }
+    void SetShield(int value) { shield = value; if (shield > MAX_SHIELD) shield = MAX_SHIELD; if (shield < 0) shield = 0; }
 };

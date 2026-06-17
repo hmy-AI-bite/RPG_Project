@@ -71,3 +71,43 @@ public:
     // 显示史莱姆详细信息
     virtual void DisplayInfo() const override;
 };
+
+// ================================================================
+//  FireLizard 类 - 火焰蜥蜴（继承自 Enemy）
+//  火属性怪物，特点是：
+//  1. 攻击力较高，但防御力较低
+//  2. 火属性（被水克制，克制风）
+//  3. 使用"火焰吐息"攻击（1.3 倍伤害）
+// ================================================================
+class FireLizard : public Enemy
+{
+public:
+    // 构造函数：level 是等级
+    FireLizard(int level = 1);
+    virtual ~FireLizard();
+
+    // 火焰蜥蜴的 AI：简单粗暴的火焰吐息
+    virtual std::vector<std::shared_ptr<Enemy>> PerformAction(Character* target) override;
+
+    virtual void DisplayInfo() const override;
+};
+
+// ================================================================
+//  WindSprite 类 - 风精灵（继承自 Enemy）
+//  风属性怪物，特点是：
+//  1. 速度很快，防御力一般
+//  2. 风属性（被火克制，克制地）
+//  3. 使用"风刃"攻击（1.2 倍伤害）
+// ================================================================
+class WindSprite : public Enemy
+{
+public:
+    // 构造函数：level 是等级
+    WindSprite(int level = 1);
+    virtual ~WindSprite();
+
+    // 风精灵的 AI：快速的风刃攻击
+    virtual std::vector<std::shared_ptr<Enemy>> PerformAction(Character* target) override;
+
+    virtual void DisplayInfo() const override;
+};

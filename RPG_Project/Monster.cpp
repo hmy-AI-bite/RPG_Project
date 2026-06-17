@@ -164,3 +164,111 @@ void Slime::DisplayInfo() const
               << " | 掉落: " << dropItem
               << " (" << (dropRate * 100) << "%)" << std::endl;
 }
+
+
+// ================================================================
+//  FireLizard 火焰蜥蜴 - 火属性怪物
+//
+//  属性：
+//    - 攻击力较高（比史莱姆高），防御力较低
+//    - 火属性（克制风，被水克制）
+//    - 攻击方式：火焰吐息（1.3 倍伤害）
+// ================================================================
+
+FireLizard::FireLizard(int level)
+    : Enemy("火焰蜥蜴", 45, 10, 3, level)
+{
+    // 根据等级重新计算属性
+    this->maxHp = 35 + level * 4;       // 生命值：比史莱姆少
+    this->hp = this->maxHp;
+    this->attackPower = 7 + level * 3;  // 攻击力：比史莱姆高！
+    this->defend = 1 + level;           // 防御力
+    this->agility = 15 + level * 2;     // 灵巧
+    this->speed = 90;                   // 速度中等
+    this->spellDefense = 3;             // 法防一般
+    this->elementType = ElementType::Fire;  // 火属性！
+
+    // 击杀奖励
+    this->experienceReward = 25 + level * 5;
+    this->goldReward = 15 + level * 3;
+    this->SetDropItem("火焰鳞片", 0.25);    // 25% 概率掉落
+}
+
+FireLizard::~FireLizard()
+{
+}
+
+std::vector<std::shared_ptr<Enemy>> FireLizard::PerformAction(Character* target)
+{
+    // 火焰吐息：1.3 倍伤害
+    PerformPhysicalAttack(target, 1.3, " 火焰吐息！");
+    return {};
+}
+
+void FireLizard::DisplayInfo() const
+{
+    std::cout << "[火焰蜥蜴] " << name << " Lv." << level
+              << " | 生命值: " << hp << "/" << maxHp
+              << ", 攻击: " << attackPower
+              << ", 防御: " << defend
+              << ", 速度: " << speed
+              << " | 经验奖励: " << experienceReward
+              << ", 金币: " << goldReward
+              << " | 属性: 火"
+              << " | 掉落: " << dropItem
+              << " (" << (dropRate * 100) << "%)" << std::endl;
+}
+
+
+// ================================================================
+//  WindSprite 风精灵 - 风属性怪物
+//
+//  属性：
+//    - 速度很快，攻击力中等
+//    - 风属性（克制地，被火克制）
+//    - 攻击方式：风刃（1.2 倍伤害）
+// ================================================================
+
+WindSprite::WindSprite(int level)
+    : Enemy("风精灵", 40, 9, 2, level)
+{
+    // 根据等级重新计算属性
+    this->maxHp = 28 + level * 3;       // 生命值：偏少（脆皮）
+    this->hp = this->maxHp;
+    this->attackPower = 6 + level * 2;  // 攻击力中等
+    this->defend = 1 + level;           // 防御力一般
+    this->agility = 25 + level * 3;     // 灵巧高
+    this->speed = 130;                  // 速度最快！
+    this->spellDefense = 4;             // 法防略高
+    this->elementType = ElementType::Wind;  // 风属性！
+
+    // 击杀奖励
+    this->experienceReward = 30 + level * 5;
+    this->goldReward = 12 + level * 2;
+    this->SetDropItem("风之羽毛", 0.3);     // 30% 概率掉落
+}
+
+WindSprite::~WindSprite()
+{
+}
+
+std::vector<std::shared_ptr<Enemy>> WindSprite::PerformAction(Character* target)
+{
+    // 风刃：1.2 倍伤害
+    PerformPhysicalAttack(target, 1.2, " 风刃攻击！");
+    return {};
+}
+
+void WindSprite::DisplayInfo() const
+{
+    std::cout << "[风精灵] " << name << " Lv." << level
+              << " | 生命值: " << hp << "/" << maxHp
+              << ", 攻击: " << attackPower
+              << ", 防御: " << defend
+              << ", 速度: " << speed
+              << " | 经验奖励: " << experienceReward
+              << ", 金币: " << goldReward
+              << " | 属性: 风"
+              << " | 掉落: " << dropItem
+              << " (" << (dropRate * 100) << "%)" << std::endl;
+}
