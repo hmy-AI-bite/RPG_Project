@@ -1,25 +1,18 @@
 /*#include "GameManager.h"
 #include "SaveLoadManager.h"
 #include "Shop.h"
-#include "DamageSystem.h"
+#include "Item.h"
 
 #include <iostream>
 #include <iomanip>
-#include <algorithm>
-#include <cmath>
 
 // ================================================================
-//  UI 工具方法 - 画界面用的小帮手
+//  工具方法
 // ================================================================
 
-// ---------- 等待按键 ----------
-// 让程序暂停，等玩家按 Enter 键再继续
-// 防止信息一闪而过看不清
 void GameManager::WaitForKeyPress()
 {
-    std::cout << "按任意键继续...";
-    std::cin.ignore();
-    std::cin.get();
+    UIManager::WaitForKeyPress();
 }
 
 // ---------- 画进度条 ----------
@@ -38,10 +31,9 @@ void GameManager::DrawProgressBar(int percent, int barLength,
 
 
 // ================================================================
-//  GameManager - 游戏管理器
+//  构造函数 / 析构函数
 // ================================================================
 
-// ---------- 构造函数 ----------
 GameManager::GameManager() : currentCharacter(nullptr)
 {
 }
@@ -50,8 +42,10 @@ GameManager::~GameManager()
 {
 }
 
-// ---------- 添加角色 ----------
-// 把角色加入队伍，如果是第一个角色就自动设为当前角色
+// ================================================================
+//  角色管理
+// ================================================================
+
 void GameManager::AddCharacter(std::shared_ptr<Character> character)
 {
     if (character)
@@ -59,21 +53,11 @@ void GameManager::AddCharacter(std::shared_ptr<Character> character)
         characters.push_back(character);
         if (!currentCharacter)
         {
-            currentCharacter = character;   // 第一个角色默认选中
+            currentCharacter = character;
         }
     }
 }
 
-// ---------- 添加怪物 ----------
-void GameManager::AddEnemy(std::shared_ptr<Enemy> enemy)
-{
-    if (enemy)
-    {
-        enemies.push_back(enemy);
-    }
-}
-
-// ---------- 切换当前角色 ----------
 void GameManager::SetCurrentCharacter(int index)
 {
     if (index >= 0 && index < static_cast<int>(characters.size()))
@@ -82,29 +66,43 @@ void GameManager::SetCurrentCharacter(int index)
     }
 }
 
-// ---------- 清屏 ----------
-void GameManager::ClearScreen() const
+// ================================================================
+//  怪物管理
+// ================================================================
+
+void GameManager::AddEnemy(std::shared_ptr<Enemy> enemy)
 {
-#ifdef _WIN32
-    system("cls");      // Windows 清屏命令
-#else
-    system("clear");    // Linux/Mac 清屏命令
-#endif
+    if (enemy)
+    {
+        enemies.push_back(enemy);
+    }
 }
 
-
-// ================================================================
-//  主控面板 - 显示当前角色的完整状态
-//  包括：HP 血条、MP 蓝条、行动条、各项属性
-// ================================================================
-void GameManager::DisplayDashboard() const
+void GameManager::DisplayEnemies() const
 {
-    ClearScreen();
+    UIManager::DisplayEnemies(enemies);
+}
 
-    std::cout << "╔════════════════════════════════════════════════════════════════╗" << std::endl;
-    std::cout << "║                    RPG 游戏 - 主控面板                          ║" << std::endl;
-    std::cout << "╚════════════════════════════════════════════════════════════════╝" << std::endl;
-    std::cout << std::endl;
+// ================================================================
+//  标题画面
+// ================================================================
+
+void GameManager::ShowTitleScreen()
+{
+    while (true)
+    {
+        char choice = UIManager::ShowTitleScreen();
+
+        switch (choice)
+        {
+        case '1':
+        {
+            // 开始新游戏 → 创建角色
+            auto newPlayer = UIManager::CreateCharacterFlow();
+            if (!newPlayer)
+            {
+                continue;  // 取消创建，重新显示标题画面
+            }
 
     if (currentCharacter)
     {
@@ -137,340 +135,176 @@ void GameManager::DisplayDashboard() const
                       << "                                        │" << std::endl;
         }
 
-        // 行动条（满 100% 就能行动）
-        int gaugePercent = currentCharacter->GetGaugePercent();
-        int displayPercent = (gaugePercent > 100) ? 100 : gaugePercent;
-        std::cout << "│ 行动条: [";
-        DrawProgressBar(displayPercent, 40, "▌", "─");
-        std::cout << "] " << std::setw(3) << std::right << displayPercent << "% │" << std::endl;
+        case '0':
+            std::cout << std::endl << "感谢游玩！再见！" << std::endl;
+            exit(0);
+            break;
 
-        // 属性面板
-        std::cout << "├─ 属性面板 ──────────────────────────────────────────────────┤" << std::endl;
-        std::cout << "│ 攻击力 (ATK): " << std::setw(45) << std::left << currentCharacter->GetAttackPower() << "│" << std::endl;
-        std::cout << "│ 防御力 (DEF): " << std::setw(45) << std::left << currentCharacter->GetDefend() << "│" << std::endl;
-        std::cout << "│ 速度 (SPD):   " << std::setw(45) << std::left << currentCharacter->GetSpeed() << "│" << std::endl;
-        std::cout << "│ 等级 (LVL):   " << std::setw(45) << std::left << currentCharacter->GetLevel() << "│" << std::endl;
-
-        std::cout << "└────────────────────────────────────────────────────────────────┘" << std::endl;
-    }
-    else
-    {
-        std::cout << "│ 没有可用的角色" << std::endl;
-    }
-
-    std::cout << std::endl;
-}
-
-
-// ================================================================
-//  主菜单 - 显示所有可用的操作
-// ================================================================
-void GameManager::DisplayMainMenu() const
-{
-    std::cout << "╔════════════════════════════════════════════════════════════════╗" << std::endl;
-    std::cout << "║                        主菜单                                  ║" << std::endl;
-    std::cout << "╠════════════════════════════════════════════════════════════════╣" << std::endl;
-    std::cout << "║ 1. 查看角色列表                                                ║" << std::endl;
-    std::cout << "║ 2. 普通攻击（平A）                                              ║" << std::endl;
-    std::cout << "║ 3. 造成伤害（测试）                                            ║" << std::endl;
-    std::cout << "║ 4. 治疗当前角色                                                ║" << std::endl;
-    std::cout << "║ 5. 恢复蓝量                                                    ║" << std::endl;
-    std::cout << "║ 6. 释放职业技能                                                ║" << std::endl;
-    std::cout << "║ 7. 查看当前角色详细信息                                        ║" << std::endl;
-    std::cout << "║ 8. 演示伤害计算系统                                            ║" << std::endl;
-    std::cout << "║ 9. 查看行动条                                                  ║" << std::endl;
-    std::cout << "║ A. 查看怪物列表                                                ║" << std::endl;
-    std::cout << "║ T. 测试史莱姆战斗                                              ║" << std::endl;
-    std::cout << "║ S. 保存游戏                                                    ║" << std::endl;
-    std::cout << "║ L. 加载游戏                                                    ║" << std::endl;
-    std::cout << "║ I. 打开背包                                                    ║" << std::endl;
-    std::cout << "║ P. 进入商店                                                    ║" << std::endl;
-    std::cout << "║ R. 刷新面板                                                    ║" << std::endl;
-    std::cout << "╠════════════════════════════════════════════════════════════════╣" << std::endl;
-    std::cout << "║               ATB 战斗测试（新功能！）                           ║" << std::endl;
-    std::cout << "╠════════════════════════════════════════════════════════════════╣" << std::endl;
-    std::cout << "║ M1. ATB 1v1 - 结算模式 + 行动顺序预测                           ║" << std::endl;
-    std::cout << "║ M2. 史莱姆分裂 - 属性继承验证                                   ║" << std::endl;
-    std::cout << "║ M3. 完整ATB战斗 - 多敌人+技能+分裂                               ║" << std::endl;
-    std::cout << "║ M4. 三种职业对比 - SPD差异影响行动频率                           ║" << std::endl;
-    std::cout << "╠════════════════════════════════════════════════════════════════╣" << std::endl;
-    std::cout << "║ 0. 退出游戏                                                    ║" << std::endl;
-    std::cout << "╚════════════════════════════════════════════════════════════════╝" << std::endl;
-    std::cout << "请输入你的选择: ";
-}
-
-
-// ================================================================
-//  角色列表
-// ================================================================
-void GameManager::DisplayCharacterList() const
-{
-    ClearScreen();
-    std::cout << "╔════════════════════════════════════════════════════════════════╗" << std::endl;
-    std::cout << "║                        角色列表                                ║" << std::endl;
-    std::cout << "╠════════════════════════════════════════════════════════════════╣" << std::endl;
-
-    for (size_t i = 0; i < characters.size(); ++i)
-    {
-        // 当前选中的角色前面有 "→" 标记
-        std::string marker = (characters[i] == currentCharacter) ? "→" : " ";
-        std::cout << "║ " << marker << " [" << i << "] " << std::setw(55) << std::left
-                  << characters[i]->GetName() << "║" << std::endl;
-    }
-
-    std::cout << "╚════════════════════════════════════════════════════════════════╝" << std::endl;
-    std::cout << "输入角色索引选择（或按其他键返回）: ";
-}
-
-
-// ================================================================
-//  怪物列表
-// ================================================================
-void GameManager::DisplayEnemies() const
-{
-    ClearScreen();
-    std::cout << "╔════════════════════════════════════════════════════════════════╗" << std::endl;
-    std::cout << "║                        怪物列表                                ║" << std::endl;
-    std::cout << "╠════════════════════════════════════════════════════════════════╣" << std::endl;
-
-    if (enemies.empty())
-    {
-        std::cout << "║ 暂无怪物生成" << std::endl;
-    }
-    else
-    {
-        for (size_t i = 0; i < enemies.size(); ++i)
-        {
-            std::cout << "║ [" << i << "] ";
-            enemies[i]->DisplayInfo();
-            std::cout << " ║" << std::endl;
+        default:
+            break;
         }
     }
-
-    std::cout << "╚════════════════════════════════════════════════════════════════╝" << std::endl;
-    WaitForKeyPress();
 }
 
+// ================================================================
+//  进入游戏
+// ================================================================
+
+void GameManager::EnterGame()
+{
+    UIManager::EnterGameScreen(currentCharacter);
+    Run();
+}
 
 // ================================================================
-//  处理操作 - 根据玩家的菜单选择执行对应的功能
+//  游戏主循环
 // ================================================================
-void GameManager::HandleAction()
+
+void GameManager::Run()
+{
+    while (true)
+    {
+        // 死亡结算
+        if (currentCharacter && !currentCharacter->IsAlive())
+        {
+            std::cout << "\n[系统] " << currentCharacter->GetName() << " 已阵亡！" << std::endl;
+
+            bool foundAlive = false;
+            for (auto& ch : characters)
+            {
+                if (ch->IsAlive())
+                {
+                    currentCharacter = ch;
+                    foundAlive = true;
+                    std::cout << "[系统] 自动切换到 " << ch->GetName() << std::endl;
+                    break;
+                }
+            }
+
+            if (!foundAlive)
+            {
+                UIManager::ClearScreen();
+                std::cout << "\n============================================================" << std::endl;
+                std::cout << "                    全 员 阵 亡！" << std::endl;
+                std::cout << "                    游 戏 结 束" << std::endl;
+                std::cout << "============================================================" << std::endl;
+                std::cout << "\n按 Enter 退出...";
+                std::cin.get();
+                return;
+            }
+
+            WaitForKeyPress();
+        }
+
+        // 刷新面板 + 显示菜单
+        UIManager::DisplayDashboard(currentCharacter);
+        UIManager::DisplayMainMenu();
+
+        if (!HandleAction())
+        {
+            // 返回标题画面
+            UIManager::ClearScreen();
+            characters.clear();
+            enemies.clear();
+            currentCharacter = nullptr;
+            playerNickname.clear();
+            ShowTitleScreen();
+            return;
+        }
+    }
+}
+
+// ================================================================
+//  处理操作（菜单路由分发）
+// ================================================================
+
+bool GameManager::HandleAction()
 {
     char choice;
     std::cin >> choice;
 
-    if (!currentCharacter) return;
+    if (!currentCharacter) return true;
 
     Player* player = dynamic_cast<Player*>(currentCharacter.get());
 
     switch (choice)
     {
-    // ===== 1. 查看角色列表 =====
+    // ===== 1. 探索 / 战斗 =====
     case '1':
-        DisplayCharacterList();
+    {
+        if (player)
+        {
+            BattleSystem::BattleEncounter(player, enemies);
+        }
+        else
+        {
+            std::cout << "当前角色无法进行战斗！" << std::endl;
+            WaitForKeyPress();
+        }
+    }
+    break;
+
+    // ===== 2. 查看角色列表 =====
+    case '2':
+    {
+        UIManager::DisplayCharacterList(characters, currentCharacter);
         int charIndex;
         if (std::cin >> charIndex)
         {
             SetCurrentCharacter(charIndex);
         }
         break;
-
-    // ===== 2. 普通攻击 =====
-    case '2':
-    {
-        if (player)
-        {
-            ClearScreen();
-            std::cout << "╔════════════════════════════════════════════════════════════════╗" << std::endl;
-            std::cout << "║                    普通攻击（平A）                             ║" << std::endl;
-            std::cout << "╠════════════════════════════════════════════════════════════════╣" << std::endl;
-
-            // 列出可以攻击的目标（不能打自己）
-            std::cout << "║ 可攻击目标：" << std::endl;
-            for (size_t i = 0; i < characters.size(); ++i)
-            {
-                if (characters[i] != currentCharacter)
-                {
-                    std::cout << "║ [" << i << "] " << characters[i]->GetName() << std::endl;
-                }
-            }
-
-            std::cout << "╠════════════════════════════════════════════════════════════════╣" << std::endl;
-            std::cout << "请选择目标编号: ";
-
-            int defenderIdx;
-            if (!(std::cin >> defenderIdx) || defenderIdx < 0 || defenderIdx >= static_cast<int>(characters.size()))
-            {
-                std::cout << "无效选择！" << std::endl;
-                return;
-            }
-
-            if (characters[defenderIdx] == currentCharacter)
-            {
-                std::cout << "不能攻击自己！" << std::endl;
-                return;
-            }
-
-            std::cout << std::endl;
-            player->NormalAttack(characters[defenderIdx].get());
-            std::cout << std::endl;
-            WaitForKeyPress();
-        }
-        else
-        {
-            std::cout << "该角色不支持攻击！" << std::endl;
-        }
     }
-    break;
 
-    // ===== 3. 造成伤害（测试用）=====
+    // ===== 3. 使用技能 =====
     case '3':
     {
-        std::cout << "请输入伤害值: ";
-        int damage;
-        std::cin >> damage;
-        currentCharacter->TakeDamage(damage);
-        WaitForKeyPress();
+        if (player)
+        {
+            BattleSystem::UseSkillInteractively(player, enemies);
+        }
+        else
+        {
+            std::cout << "当前角色不支持技能系统！" << std::endl;
+            WaitForKeyPress();
+        }
     }
     break;
 
-    // ===== 4. 治疗当前角色 =====
+    // ===== 4. 打开背包 =====
     case '4':
     {
-        std::cout << "请输入治疗量: ";
-        int heal;
-        std::cin >> heal;
-        currentCharacter->Heal(heal);
-        WaitForKeyPress();
-    }
-    break;
-
-    // ===== 5. 恢复蓝量 =====
-    case '5':
         if (player)
         {
-            std::cout << "请输入恢复蓝量: ";
-            int restoreMp;
-            std::cin >> restoreMp;
-            player->RestoreMp(restoreMp);
-            WaitForKeyPress();
+            OpenInventory(player);
         }
         else
         {
-            std::cout << "该角色不支持蓝量系统！" << std::endl;
+            std::cout << "当前角色不是玩家！" << std::endl;
+            WaitForKeyPress();
         }
-        break;
+    }
+    break;
 
-    // ===== 6. 释放职业技能 =====
+    // ===== 5. 进入商店 =====
+    case '5':
+    {
+        if (player)
+        {
+            OpenShop(player);
+        }
+        else
+        {
+            std::cout << "当前角色不是玩家！" << std::endl;
+            WaitForKeyPress();
+        }
+    }
+    break;
+
+    // ===== 6. 属性分配 =====
     case '6':
     {
-        if (player)
-        {
-            ClearScreen();
-            std::cout << "╔════════════════════════════════════════════════════════════════╗" << std::endl;
-            std::cout << "║                      职业技能演示                             ║" << std::endl;
-            std::cout << "╠════════════════════════════════════════════════════════════════╣" << std::endl;
-
-            // 根据角色类型显示不同的技能
-            Mage* mage = dynamic_cast<Mage*>(player);
-            Braver* braver = dynamic_cast<Braver*>(player);
-
-            if (mage)
-            {
-                // 法师技能：火焰术
-                std::cout << "║ [法师技能] 火焰术                                               ║" << std::endl;
-                std::cout << "║ 消耗蓝量: 30                                                  ║" << std::endl;
-                std::cout << "╠════════════════════════════════════════════════════════════════╣" << std::endl;
-                if (mage->HasEnoughMp(30))
-                {
-                    std::cout << "║ ";
-                    mage->CastSpell(30);
-                    std::cout << " ║" << std::endl;
-                    std::cout << "║ 法术攻击力: " << mage->GetSpellPower() << std::endl;
-                    std::cout << "║ 技能倍率: 1.8x" << std::endl;
-                }
-                else
-                {
-                    std::cout << "║ 蓝量不足！" << std::endl;
-                }
-            }
-            else if (braver)
-            {
-                // 勇者技能：刺客之刃（真实伤害！）
-                std::cout << "║ [勇者技能] 刺客之刃 - 真实伤害                                   ║" << std::endl;
-                std::cout << "║ 消耗蓝量: 20                                                  ║" << std::endl;
-                std::cout << "╠════════════════════════════════════════════════════════════════╣" << std::endl;
-                if (braver->HasEnoughMp(20))
-                {
-                    braver->ConsumeMp(20);
-                    std::cout << "║ ";
-                    // 如果有怪物，就打第一个怪物；否则打自己（测试用）
-                    Character* target = enemies.empty() ? currentCharacter.get() : enemies[0].get();
-                    braver->ExecuteTrueAttack(target);
-                    std::cout << " ║" << std::endl;
-                    std::cout << "║ 无视防御和抗性！" << std::endl;
-                }
-                else
-                {
-                    std::cout << "║ 蓝量不足！" << std::endl;
-                }
-            }
-            else
-            {
-                // 战士技能：强力挥斩
-                std::cout << "║ [战士技能] 挥斩                                               ║" << std::endl;
-                std::cout << "║ 消耗蓝量: 15                                                  ║" << std::endl;
-                std::cout << "╠════════════════════════════════════════════════════════════════╣" << std::endl;
-                if (player->HasEnoughMp(15))
-                {
-                    player->ConsumeMp(15);
-                    std::cout << "║ " << player->GetName() << " 使出强力挥斩！伤害倍率: 1.5x ║" << std::endl;
-                }
-                else
-                {
-                    std::cout << "║ 蓝量不足！" << std::endl;
-                }
-            }
-
-            std::cout << "╚════════════════════════════════════════════════════════════════╝" << std::endl;
-            WaitForKeyPress();
-        }
-        else
-        {
-            std::cout << "该角色不支持技能系统！" << std::endl;
-        }
-    }
-    break;
-
-    // ===== 7. 查看当前角色详细信息 =====
-    case '7':
-        ClearScreen();
-        std::cout << "╔════════════════════════════════════════════════════════════════╗" << std::endl;
-        std::cout << "║                      角色详细信息                             ║" << std::endl;
-        std::cout << "╠════════════════════════════════════════════════════════════════╣" << std::endl;
-        std::cout << "║ ";
-        currentCharacter->DisplayInfo();
-        std::cout << "║" << std::endl;
-        std::cout << "╚════════════════════════════════════════════════════════════════╝" << std::endl;
-        WaitForKeyPress();
-        break;
-
-    // ===== 8. 演示伤害计算系统 =====
-    case '8':
-        DemonstrateDamageSystem();
-        break;
-
-    // ===== 9. 查看行动条 =====
-    case '9':
-    {
-        ClearScreen();
-        std::cout << "╔════════════════════════════════════════════════════════════════╗" << std::endl;
-        std::cout << "║                      所有角色行动条                           ║" << std::endl;
-        std::cout << "╠════════════════════════════════════════════════════════════════╣" << std::endl;
-
-        // 显示每个角色的行动条进度
-        for (size_t i = 0; i < characters.size(); ++i)
+        if (!player)
         {
             int gaugePercent = characters[i]->GetGaugePercent();
             int displayPercent = (gaugePercent > 100) ? 100 : gaugePercent;
@@ -479,33 +313,19 @@ void GameManager::HandleAction()
             DrawProgressBar(displayPercent, 30, "█", "?");
             std::cout << "] " << std::setw(3) << std::right << displayPercent << "% ║" << std::endl;
         }
-
-        std::cout << "╠════════════════════════════════════════════════════════════════╣" << std::endl;
-        std::cout << "║ 提示: 行动条满100%时可以行动                                   ║" << std::endl;
-        std::cout << "║ 速度越高，行动条填充越快                                       ║" << std::endl;
-        std::cout << "╚════════════════════════════════════════════════════════════════╝" << std::endl;
-        WaitForKeyPress();
+        AllocateAttributes(player);
     }
     break;
 
-    // ===== A. 查看怪物列表 =====
-    case 'A':
-    case 'a':
-        DisplayEnemies();
-        break;
-
-    // ===== T. 测试史莱姆战斗 =====
-    case 'T':
-    case 't':
-        TestSlime();
-        WaitForKeyPress();
+    // ===== 7. 查看详细信息 =====
+    case '7':
+        ShowCharacterDetail();
         break;
 
     // ===== S. 保存游戏 =====
     case 'S':
     case 's':
     {
-        Player* player = dynamic_cast<Player*>(currentCharacter.get());
         if (player)
         {
             SaveLoadManager::SaveGame(*player);
@@ -522,7 +342,6 @@ void GameManager::HandleAction()
     case 'L':
     case 'l':
     {
-        Player* player = dynamic_cast<Player*>(currentCharacter.get());
         if (player)
         {
             if (SaveLoadManager::LoadGame(*player))
@@ -538,931 +357,234 @@ void GameManager::HandleAction()
     }
     break;
 
-    // ===== M1. ATB 1v1 测试 =====
-    case 'M':
-    case 'm':
-    {
-        char sub;
-        std::cin >> sub;
-        std::cin.ignore();
-        switch (sub)
-        {
-        case '1': TestATB_1v1(); break;
-        case '2': TestSlimeSplit(); break;
-        case '3': TestFullBattle(); break;
-        case '4': TestAllClasses(); break;
-        default:
-            std::cout << "无效选择！" << std::endl;
-            WaitForKeyPress();
-            break;
-        }
-    }
-    break;
-
-    // ===== I. 打开背包 =====
-    case 'I':
-    case 'i':
-    {
-        Player* player = dynamic_cast<Player*>(currentCharacter.get());
-        if (player)
-        {
-            ClearScreen();
-            std::cout << "╔════════════════════════════════════════════════════════════════╗" << std::endl;
-            std::cout << "║                        背包界面                                ║" << std::endl;
-            std::cout << "╠════════════════════════════════════════════════════════════════╣" << std::endl;
-            player->GetInventory().ShowInventory();
-            std::cout << "╠════════════════════════════════════════════════════════════════╣" << std::endl;
-            std::cout << "║ 输入道具序号使用道具（按 Q 退出）: ";
-
-            char input;
-            std::cin >> input;
-            if (input != 'Q' && input != 'q')
-            {
-                int index = input - '0';
-                player->GetInventory().UseItem(index, player);
-            }
-        }
-        else
-        {
-            std::cout << "当前角色不是玩家！" << std::endl;
-            WaitForKeyPress();
-        }
-    }
-    break;
-
-    // ===== P. 进入商店 =====
-    case 'P':
-    case 'p':
-    {
-        Player* player = dynamic_cast<Player*>(currentCharacter.get());
-        if (player)
-        {
-            Shop shop;
-            bool inShop = true;
-
-            // 商店循环：一直在商店里直到选择退出
-            while (inShop)
-            {
-                ClearScreen();
-                std::cout << "========================================================" << std::endl;
-                std::cout << "                    商店界面" << std::endl;
-                std::cout << "========================================================" << std::endl;
-                std::cout << " 当前金币: " << player->GetGold() << " 金" << std::endl;
-                std::cout << "========================================================" << std::endl;
-                shop.ShowShop();
-                std::cout << "========================================================" << std::endl;
-                std::cout << " B. 购买道具  S. 出售道具  Q. 退出商店" << std::endl;
-                std::cout << "========================================================" << std::endl;
-                std::cout << "请输入你的选择: ";
-
-                char shopChoice;
-                std::cin >> shopChoice;
-
-                switch (shopChoice)
-                {
-                case 'B':
-                case 'b':
-                {
-                    std::cout << "请输入要购买的道具序号: ";
-                    int index;
-                    std::cin >> index;
-                    shop.BuyItem(*player, index);
-                    WaitForKeyPress();
-                }
-                break;
-
-                case 'S':
-                case 's':
-                {
-                    std::cout << "请输入要出售的背包道具序号: ";
-                    int index;
-                    std::cin >> index;
-                    shop.SellItem(*player, index);
-                    WaitForKeyPress();
-                }
-                break;
-
-                case 'Q':
-                case 'q':
-                    inShop = false;
-                    break;
-                }
-            }
-        }
-        else
-        {
-            std::cout << "当前角色不是玩家！" << std::endl;
-            WaitForKeyPress();
-        }
-    }
-    break;
-
-    // ===== R. 刷新面板 =====
-    case 'R':
-    case 'r':
-        // 什么都不做，循环会自动刷新面板
-        break;
-
-    // ===== 0. 退出游戏 =====
+    // ===== 0. 返回标题画面 =====
     case '0':
-        std::cout << "感谢游玩！再见！" << std::endl;
-        exit(0);
-        break;
+        std::cout << "返回标题画面..." << std::endl;
+        WaitForKeyPress();
+        return false;
 
-    // ===== 无效输入 =====
     default:
         std::cout << "无效选择！请重新输入。" << std::endl;
         WaitForKeyPress();
     }
+    return true;
 }
 
+// ================================================================
+//  背包界面
+// ================================================================
 
-// ================================================================
-//  游戏主循环
-//  不断：清屏 → 显示面板 → 显示菜单 → 处理操作 → 循环
-// ================================================================
-void GameManager::Run()
+void GameManager::OpenInventory(Player* player)
 {
-    while (true)
-    {
-        UpdateDashboard();      // 刷新主控面板
-        DisplayMainMenu();      // 显示菜单
-        HandleAction();         // 处理玩家选择
-    }
-}
-
-// ---------- 刷新面板 ----------
-void GameManager::UpdateDashboard() const
-{
-    DisplayDashboard();
-}
-
-
-// ================================================================
-//  伤害计算系统演示
-//  展示三种伤害类型（物理/魔法/真实）的完整计算过程
-// ================================================================
-void GameManager::DemonstrateDamageSystem()
-{
-    if (characters.size() < 2)
-    {
-        std::cout << "需要至少两个角色来演示伤害系统！" << std::endl;
-        return;
-    }
-
-    ClearScreen();
+    UIManager::ClearScreen();
     std::cout << "╔════════════════════════════════════════════════════════════════╗" << std::endl;
-    std::cout << "║                    伤害系统演示                                ║" << std::endl;
+    std::cout << "║                        背包界面                                ║" << std::endl;
     std::cout << "╠════════════════════════════════════════════════════════════════╣" << std::endl;
-
-    // 列出可选角色
-    for (size_t i = 0; i < characters.size(); ++i)
-    {
-        std::cout << "║ [" << i << "] " << std::setw(58) << std::left << characters[i]->GetName() << "║" << std::endl;
-    }
-
+    player->GetInventory().ShowInventory();
     std::cout << "╠════════════════════════════════════════════════════════════════╣" << std::endl;
-    std::cout << "请选择攻击者编号: ";
+    std::cout << "║ 输入道具序号使用道具（按 Q 退出）: ";
 
-    int attackerIdx, defenderIdx;
-    if (!(std::cin >> attackerIdx) || attackerIdx < 0 || attackerIdx >= static_cast<int>(characters.size()))
+    char input;
+    std::cin >> input;
+    if (input != 'Q' && input != 'q')
     {
-        std::cout << "无效选择！" << std::endl;
-        return;
+        int index = input - '0';
+        player->GetInventory().UseItem(index, player);
     }
-
-    std::cout << "请选择防御者编号: ";
-    if (!(std::cin >> defenderIdx) || defenderIdx < 0 || defenderIdx >= static_cast<int>(characters.size()))
-    {
-        std::cout << "无效选择！" << std::endl;
-        return;
-    }
-
-    if (attackerIdx == defenderIdx)
-    {
-        std::cout << "不能攻击自己！" << std::endl;
-        return;
-    }
-
-    std::cout << std::endl;
-    PerformAttack(characters[attackerIdx], characters[defenderIdx]);
-
-    std::cout << std::endl;
-    WaitForKeyPress();
 }
 
+// ================================================================
+//  商店界面
+// ================================================================
 
-// ================================================================
-//  执行攻击演示
-//  展示攻击者和防御者的属性，然后计算三种伤害
-// ================================================================
-void GameManager::PerformAttack(std::shared_ptr<Character> attacker, std::shared_ptr<Character> defender)
+void GameManager::OpenShop(Player* player)
 {
-    DamageCalculator calculator;
+    Shop shop;
+    bool inShop = true;
 
-    // 显示攻击者和防御者的信息
-    std::cout << "攻击者信息:" << std::endl;
-    attacker->DisplayInfo();
-    std::cout << std::endl;
+    while (inShop)
+    {
+        UIManager::ClearScreen();
+        std::cout << "========================================================" << std::endl;
+        std::cout << "                    商店界面" << std::endl;
+        std::cout << "========================================================" << std::endl;
+        std::cout << " 当前金币: " << player->GetGold() << " 金" << std::endl;
+        std::cout << "========================================================" << std::endl;
+        shop.ShowShop();
+        std::cout << "========================================================" << std::endl;
+        std::cout << " B. 购买道具  S. 出售道具  Q. 退出商店" << std::endl;
+        std::cout << "========================================================" << std::endl;
+        std::cout << "请输入你的选择: ";
 
-    std::cout << "防御者信息:" << std::endl;
-    defender->DisplayInfo();
-    std::cout << std::endl;
+        char shopChoice;
+        std::cin >> shopChoice;
 
-    // ===== 物理伤害计算 =====
-    std::cout << "═══════════════════════════════════════════════════════════════" << std::endl;
-    std::cout << "【物理伤害计算】" << std::endl;
-    std::cout << "═══════════════════════════════════════════════════════════════" << std::endl;
+        switch (shopChoice)
+        {
+        case 'B':
+        case 'b':
+        {
+            std::cout << "请输入要购买的道具序号: ";
+            int index;
+            std::cin >> index;
+            shop.BuyItem(*player, index);
+            WaitForKeyPress();
+        }
+        break;
 
-    DamageInfo physicalDamage = calculator.CalculatePhysicalDamage(
-        attacker->GetAttackPower(),
-        defender->GetDefend(),
-        attacker->GetLevel(),
-        defender->GetLevel(),
-        1.5,                            // 技能倍率 1.5
-        attacker->GetElementType(),
-        defender->GetElementType(),
-        attacker->GetAgility(),
-        defender->GetResistance()
-    );
+        case 'S':
+        case 's':
+        {
+            std::cout << "请输入要出售的背包道具序号: ";
+            int index;
+            std::cin >> index;
+            shop.SellItem(*player, index);
+            WaitForKeyPress();
+        }
+        break;
 
-    std::cout << "基础伤害: " << std::fixed << std::setprecision(2) << physicalDamage.baseDamage << std::endl;
-    std::cout << "属性克制倍数: " << physicalDamage.elementBonus << "x" << std::endl;
-    std::cout << "暴击: " << (physicalDamage.isCritical ? "是 (×1.5)" : "否") << std::endl;
-    std::cout << "抗性减伤: " << (1 - physicalDamage.resistanceReduction) * 100 << "%" << std::endl;
-    std::cout << "最终伤害: " << static_cast<int>(physicalDamage.finalDamage) << std::endl;
-
-    // ===== 魔法伤害计算 =====
-    std::cout << std::endl;
-    std::cout << "═══════════════════════════════════════════════════════════════" << std::endl;
-    std::cout << "【魔法伤害计算】" << std::endl;
-    std::cout << "═══════════════════════════════════════════════════════════════" << std::endl;
-
-    DamageInfo magicalDamage = calculator.CalculateMagicalDamage(
-        50,                             // 假设法术攻击力 50
-        defender->GetSpellDefense(),
-        attacker->GetLevel(),
-        defender->GetLevel(),
-        1.2,                            // 技能倍率 1.2
-        attacker->GetElementType(),
-        defender->GetElementType(),
-        attacker->GetAgility(),
-        defender->GetResistance()
-    );
-
-    std::cout << "基础法术攻击力: 50" << std::endl;
-    std::cout << "防御方法术防御力: " << defender->GetSpellDefense() << std::endl;
-    std::cout << "法术减伤比: " << std::fixed << std::setprecision(2)
-              << (defender->GetSpellDefense() / (defender->GetSpellDefense() + 200.0)) * 100 << "%" << std::endl;
-    std::cout << "基础伤害: " << magicalDamage.baseDamage << std::endl;
-    std::cout << "属性克制倍数: " << magicalDamage.elementBonus << "x" << std::endl;
-    std::cout << "暴击: " << (magicalDamage.isCritical ? "是 (×1.5)" : "否") << std::endl;
-    std::cout << "最终伤害: " << static_cast<int>(magicalDamage.finalDamage) << std::endl;
-
-    // ===== 真实伤害计算 =====
-    std::cout << std::endl;
-    std::cout << "═══════════════════════════════════════════════════════════════" << std::endl;
-    std::cout << "【真实伤害计算】" << std::endl;
-    std::cout << "═══════════════════════════════════════════════════════════════" << std::endl;
-
-    DamageInfo trueDamage = calculator.CalculateTrueDamage(
-        20,                             // 固定伤害 20
-        attacker->GetAttackPower(),
-        attacker->GetLevel(),
-        defender->GetLevel()
-    );
-
-    std::cout << "固定伤害值: 20" << std::endl;
-    std::cout << "攻击力倍数伤害: " << std::fixed << std::setprecision(2)
-              << (attacker->GetAttackPower() * 0.5) << std::endl;
-    std::cout << "最终伤害: " << static_cast<int>(trueDamage.finalDamage) << std::endl;
-    std::cout << "（无视防御和抗性）" << std::endl;
+        case 'Q':
+        case 'q':
+            inShop = false;
+            break;
+        }
+    }
 }
 
+// ================================================================
+//  属性分配界面
+// ================================================================
 
-// ================================================================
-//  史莱姆战斗测试
-//  创建 3 个不同等级的史莱姆，测试攻击和分裂
-// ================================================================
-void GameManager::TestSlime()
+void GameManager::AllocateAttributes(Player* player)
 {
-    ClearScreen();
-    std::cout << "╔════════════════════════════════════════════════════════════════╗" << std::endl;
-    std::cout << "║                    史莱姆战斗测试                             ║" << std::endl;
-    std::cout << "╠════════════════════════════════════════════════════════════════╣" << std::endl;
-
-    if (!currentCharacter)
+    bool allocating = true;
+    while (allocating && player->GetAvailableAP() > 0)
     {
-        std::cout << "║ 没有当前角色" << std::endl;
+        UIManager::ClearScreen();
+        std::cout << "╔════════════════════════════════════════════════════════════════╗" << std::endl;
+        std::cout << "║                      属性分配界面                              ║" << std::endl;
+        std::cout << "╠════════════════════════════════════════════════════════════════╣" << std::endl;
+        std::cout << "║  可用属性点 (AP): " << std::setw(46) << std::left << player->GetAvailableAP() << "║" << std::endl;
+        std::cout << "╠════════════════════════════════════════════════════════════════╣" << std::endl;
+        std::cout << "║  当前属性:                                                      ║" << std::endl;
+        std::cout << "║    HP: " << std::setw(8) << std::left << (std::to_string(player->GetHp()) + "/" + std::to_string(player->GetMaxHp()))
+                  << "  MP: " << std::setw(8) << std::left << (std::to_string(player->GetMp()) + "/" + std::to_string(player->GetMaxMp()))
+                  << "  ATK: " << player->GetAttackPower() << "  ║" << std::endl;
+        std::cout << "║    DEF: " << std::setw(6) << std::left << player->GetDefend()
+                  << "  SPD: " << std::setw(6) << std::left << player->GetSpeed()
+                  << "  AGI: " << std::setw(6) << std::left << player->GetAgility()
+                  << "  S.DEF: " << player->GetSpellDefense() << "  ║" << std::endl;
+
+        // 职业特有信息（多态调用）
+        currentCharacter->DisplayClassSpecificInfo();
+
+        Mage* mage = dynamic_cast<Mage*>(player);
+        Braver* braver = dynamic_cast<Braver*>(player);
+        Guardian* guardian = dynamic_cast<Guardian*>(player);
+
+        if (mage)
+        {
+            std::cout << "╠════════════════════════════════════════════════════════════════╣" << std::endl;
+            std::cout << "║  每点 AP 效果 (法师 - 偏法术向):                                   ║" << std::endl;
+            std::cout << "║    [1] HP+4   [2] MP+7   [3] ATK+1   [4] DEF+1                ║" << std::endl;
+            std::cout << "║    [5] SPD+2  [6] AGI+2  [7] S.DEF+2 [8] 法术强度+3            ║" << std::endl;
+        }
+        else if (braver)
+        {
+            std::cout << "╠════════════════════════════════════════════════════════════════╣" << std::endl;
+            std::cout << "║  每点 AP 效果 (勇者 - 偏攻击向):                                   ║" << std::endl;
+            std::cout << "║    [1] HP+6   [2] MP+4   [3] ATK+3   [4] DEF+1                ║" << std::endl;
+            std::cout << "║    [5] SPD+2  [6] AGI+2  [7] S.DEF+1                          ║" << std::endl;
+        }
+        else if (guardian)
+        {
+            std::cout << "╠════════════════════════════════════════════════════════════════╣" << std::endl;
+            std::cout << "║  每点 AP 效果 (守护骑士 - 偏防御向):                                 ║" << std::endl;
+            std::cout << "║    [1] HP+12  [2] MP+5   [3] ATK+1   [4] DEF+3                ║" << std::endl;
+            std::cout << "║    [5] SPD+1  [6] AGI+1  [7] S.DEF+2                          ║" << std::endl;
+        }
+        else
+        {
+            std::cout << "╠════════════════════════════════════════════════════════════════╣" << std::endl;
+            std::cout << "║  每点 AP 效果 (战士 - 均衡型):                                     ║" << std::endl;
+            std::cout << "║    [1] HP+8   [2] MP+5   [3] ATK+2   [4] DEF+1                ║" << std::endl;
+            std::cout << "║    [5] SPD+1  [6] AGI+1  [7] S.DEF+1                          ║" << std::endl;
+        }
+
+        std::cout << "╠════════════════════════════════════════════════════════════════╣" << std::endl;
+        std::cout << "║  输入属性编号分配 1 点 AP，或输入 Q 退出分配                       ║" << std::endl;
         std::cout << "╚════════════════════════════════════════════════════════════════╝" << std::endl;
-        return;
-    }
+        std::cout << "请输入你的选择: ";
 
-    // 创建三个不同等级的史莱姆
-    std::cout << "║ 生成史莱姆..." << std::endl;
-    auto slime1 = std::make_shared<Slime>(1);   // 1 级史莱姆
-    auto slime2 = std::make_shared<Slime>(3);   // 3 级史莱姆
-    auto slime3 = std::make_shared<Slime>(5);   // 5 级史莱姆
+        char attrChoice;
+        std::cin >> attrChoice;
 
-    // 显示玩家和史莱姆信息
-    std::cout << "╠════════════════════════════════════════════════════════════════╣" << std::endl;
-    std::cout << "║ 玩家信息:" << std::endl;
-    std::cout << "║ ";
-    currentCharacter->DisplayInfo();
-    std::cout << " ║" << std::endl;
-
-    std::cout << "╠════════════════════════════════════════════════════════════════╣" << std::endl;
-    std::cout << "║ 史莱姆敌人信息:" << std::endl;
-    std::cout << "║ ";
-    slime1->DisplayInfo();
-    std::cout << " ║" << std::endl;
-    std::cout << "║ ";
-    slime2->DisplayInfo();
-    std::cout << " ║" << std::endl;
-    std::cout << "║ ";
-    slime3->DisplayInfo();
-    std::cout << " ║" << std::endl;
-
-    // 测试 1：玩家攻击史莱姆
-    std::cout << "╠════════════════════════════════════════════════════════════════╣" << std::endl;
-    std::cout << "║ 测试1: 玩家普通攻击史莱姆1" << std::endl;
-    Player* player = dynamic_cast<Player*>(currentCharacter.get());
-    if (player)
-    {
-        player->NormalAttack(slime1.get());
-    }
-
-    // 测试 2：史莱姆攻击玩家
-    std::cout << std::endl << "║ 测试2: 史莱姆1普通攻击玩家" << std::endl;
-    slime1->PerformAction(currentCharacter.get());
-
-    // 测试 3：史莱姆分裂（先把它打到半血以下）
-    std::cout << std::endl << "║ 测试3: 史莱姆血量低时的分裂攻击" << std::endl;
-    while (slime2->GetHp() > slime2->GetMaxHp() / 2)
-    {
-        slime2->TakeDamage(10);     // 每次打 10 血，直到低于半血
-    }
-    slime2->PerformAction(currentCharacter.get());  // 触发分裂！
-
-    std::cout << std::endl << "║ 测试结束！" << std::endl;
-
-    // 战斗胜利奖励
-    if (player)
-    {
-        int expReward = 50;
-        std::cout << "║ 战斗胜利！获得 " << expReward << " 经验值！" << std::endl;
-        player->GainExperience(expReward);
-    }
-
-    std::cout << "╚════════════════════════════════════════════════════════════════╝" << std::endl;
-}
-
-// ================================================================
-//  DrawSeparator - 画分隔线
-// ================================================================
-void GameManager::DrawSeparator(const std::string& title)
-{
-    std::cout << "\n============================================================\n";
-    if (!title.empty())
-        std::cout << "  " << title << "\n";
-    std::cout << "============================================================\n";
-}
-
-// ================================================================
-//  ATB 测试辅助 - 结构体和常量
-// ================================================================
-
-namespace ATBTest {
-    const int TICK_MS = 50;
-    const int MAX_PREDICT = 3;
-
-    // ---------- 行动预测条目 ----------
-    struct PredictEntry {
-        std::string name;
-        int speed;
-        int framesToReady;
-    };
-
-    // ---------- 行动条目 ----------
-    struct ActionEntry {
-        bool isPlayer;
-        int speed;
-        size_t enemyIndex;
-    };
-
-    // ---------- 计算到满条所需帧数 ----------
-    int FramesToReady(const Character* c) {
-        int remaining = MAX_GAUGE - c->GetCurrentGauge();
-        if (remaining <= 0) return 0;
-        int perFrame = (c->GetSpeed() * TICK_MS) / 100;
-        if (perFrame <= 0) return 99999;
-        return (remaining + perFrame - 1) / perFrame;
-    }
-
-    // ---------- 预测接下来 N 个行动者 ----------
-    std::vector<PredictEntry> PredictNextActors(
-        const std::vector<Character*>& units, int count = MAX_PREDICT) {
-        std::vector<PredictEntry> result;
-        for (auto* u : units) {
-            if (!u->IsAlive()) continue;
-            result.push_back({ u->GetName(), u->GetSpeed(), FramesToReady(u) });
-        }
-        std::sort(result.begin(), result.end(),
-            [](const PredictEntry& a, const PredictEntry& b) {
-                if (a.framesToReady != b.framesToReady)
-                    return a.framesToReady < b.framesToReady;
-                return a.speed > b.speed;
-            });
-        if ((int)result.size() > count) result.resize(count);
-        return result;
-    }
-
-    // ---------- 显示行动顺序 ----------
-    void ShowActionOrder(const std::vector<PredictEntry>& predictions) {
-        std::cout << "[行动顺序] ";
-        for (size_t i = 0; i < predictions.size(); ++i) {
-            if (i > 0) std::cout << " -> ";
-            std::cout << predictions[i].name;
-            if (predictions[i].framesToReady > 0)
-                std::cout << "(" << predictions[i].framesToReady << "帧)";
-            else
-                std::cout << "(就绪)";
-        }
-        std::cout << "\n";
-    }
-
-    // ---------- 快进到下一个行动者满条 ----------
-    int FastForwardToNextAction(
-        Player* player,
-        std::vector<std::shared_ptr<Enemy>>& enemies) {
-        int framesPassed = 0;
-        while (true) {
-            if (player->IsAlive() && player->IsReadyToAct()) return framesPassed;
-            for (auto& e : enemies)
-                if (e->IsAlive() && e->IsReadyToAct()) return framesPassed;
-            framesPassed++;
-            if (player->IsAlive()) player->UpdateGauge(TICK_MS);
-            for (auto& e : enemies)
-                if (e->IsAlive()) e->UpdateGauge(TICK_MS);
-        }
-    }
-
-    // ---------- 收集所有满条单位 ----------
-    std::vector<ActionEntry> CollectReadyActors(
-        Player* player,
-        const std::vector<std::shared_ptr<Enemy>>& enemies) {
-        std::vector<ActionEntry> queue;
-        if (player->IsAlive() && player->IsReadyToAct())
-            queue.push_back({ true, player->GetSpeed(), 0 });
-        for (size_t i = 0; i < enemies.size(); ++i)
-            if (enemies[i]->IsAlive() && enemies[i]->IsReadyToAct())
-                queue.push_back({ false, enemies[i]->GetSpeed(), i });
-        std::sort(queue.begin(), queue.end(),
-            [](const ActionEntry& a, const ActionEntry& b) {
-                return a.speed > b.speed;
-            });
-        return queue;
-    }
-
-    // ---------- 构建预测用单位列表 ----------
-    std::vector<Character*> BuildUnitList(
-        Player* player,
-        const std::vector<std::shared_ptr<Enemy>>& enemies) {
-        std::vector<Character*> units;
-        if (player->IsAlive()) units.push_back(player);
-        for (auto& e : enemies)
-            if (e->IsAlive()) units.push_back(e.get());
-        return units;
-    }
-}
-
-// ================================================================
-//  TestATB_1v1 - ATB 1v1 测试
-// ================================================================
-void GameManager::TestATB_1v1()
-{
-    ClearScreen();
-    DrawSeparator("测试1：ATB战斗 - 1v1（无跑条动画，仅结算+行动顺序）");
-
-    auto player = std::make_shared<Player>("战士·剑心");
-    player->SetPhysicalResistance(0.05);
-    player->SetMagicalResistance(0.03);
-    player->AddSkill(std::make_shared<PhysicalSkill>("强力挥斩", 1.5, 15, ElementType::Neutral));
-    player->AddSkill(std::make_shared<PhysicalSkill>("破甲突刺", 1.8, 25, ElementType::Neutral));
-
-    auto slime = std::make_shared<Slime>(3);
-    std::vector<std::shared_ptr<Enemy>> enemies;
-    enemies.push_back(slime);
-
-    std::cout << "玩家(SPD=" << player->GetSpeed() << ") vs 史莱姆(SPD=" << slime->GetSpeed() << ")\n";
-    std::cout << "行动条上限: " << MAX_GAUGE << "（满了才能行动）\n\n";
-    player->DisplayInfo();
-    slime->DisplayInfo();
-    std::cout << "\n按 Enter 开始...";
-    std::cin.get();
-
-    bool quit = false;
-    int round = 0;
-
-    while (!quit && player->IsAlive() && slime->IsAlive()) {
-        int frames = ATBTest::FastForwardToNextAction(player.get(), enemies);
-        auto predictions = ATBTest::PredictNextActors(ATBTest::BuildUnitList(player.get(), enemies));
-        DrawSeparator("第 " + std::to_string(++round) + " 次行动 (推进 " + std::to_string(frames) + " 帧)");
-        ATBTest::ShowActionOrder(predictions);
-
-        auto queue = ATBTest::CollectReadyActors(player.get(), enemies);
-
-        for (auto& entry : queue) {
-            if (entry.isPlayer) {
-                player->ResetGauge();
-                std::cout << "\n>>> 你的回合！\n";
-                std::cout << "HP:" << player->GetHp() << "/" << player->GetMaxHp()
-                          << "  MP:" << player->GetMp() << "/" << player->GetMaxMp() << "\n";
-                std::cout << "史莱姆 HP:" << slime->GetHp() << "/" << slime->GetMaxHp() << "\n\n";
-                std::cout << "  [1] 普通攻击\n";
-                std::cout << "  [2] 强力挥斩 (15蓝, 1.5x)\n";
-                std::cout << "  [3] 破甲突刺 (25蓝, 1.8x)\n";
-                std::cout << "  [Q] 退出\n";
-                std::cout << "请输入: ";
-
-                char ch;
-                std::cin >> ch;
-                std::cin.ignore();
-                if (ch == 'Q' || ch == 'q') { quit = true; break; }
-
-                switch (ch) {
-                case '1': player->NormalAttack(slime.get()); break;
-                case '2': player->UseSkill(0, slime.get()); break;
-                case '3': player->UseSkill(1, slime.get()); break;
-                default: std::cout << "无效选择。\n"; break;
-                }
-
-                std::cout << "\n[结算] 玩家 HP:" << player->GetHp() << "/" << player->GetMaxHp()
-                          << " MP:" << player->GetMp() << "/" << player->GetMaxMp()
-                          << "  史莱姆 HP:" << slime->GetHp() << "/" << slime->GetMaxHp() << "\n";
-                std::cout << "按 Enter 继续...";
-                std::cin.get();
-            }
-            else {
-                auto& enemy = enemies[entry.enemyIndex];
-                if (!enemy->IsAlive()) continue;
-                enemy->ResetGauge();
-                std::cout << "\n>>> " << enemy->GetName() << " 行动！\n";
-                auto spawned = enemy->PerformAction(player.get());
-                if (!spawned.empty())
-                    std::cout << "  (分裂，1v1测试不加入战场)\n";
-
-                std::cout << "\n[结算] 玩家 HP:" << player->GetHp() << "/" << player->GetMaxHp()
-                          << " MP:" << player->GetMp() << "/" << player->GetMaxMp()
-                          << "  史莱姆 HP:" << slime->GetHp() << "/" << slime->GetMaxHp() << "\n";
-                std::cout << "按 Enter 继续...";
-                std::cin.get();
-            }
-
-            if (!player->IsAlive() || !slime->IsAlive()) break;
-        }
-    }
-
-    if (player->IsAlive() && !slime->IsAlive())
-        std::cout << "\n【胜利！】\n";
-    else if (!player->IsAlive())
-        std::cout << "\n【失败！】\n";
-
-    std::cout << "\n按 Enter 继续...";
-    std::cin.get();
-}
-
-// ================================================================
-//  TestSlimeSplit - 史莱姆分裂验证
-// ================================================================
-void GameManager::TestSlimeSplit()
-{
-    ClearScreen();
-    DrawSeparator("测试2：史莱姆分裂验证");
-
-    auto player = std::make_shared<Player>("测试勇者");
-    player->SetAttackPower(30);
-
-    auto slime = std::make_shared<Slime>(3);
-    std::vector<std::shared_ptr<Enemy>> enemies;
-    enemies.push_back(slime);
-
-    std::cout << "玩家 SPD=" << player->GetSpeed() << " | 史莱姆 SPD=" << slime->GetSpeed() << "\n";
-    std::cout << "分裂阈值: HP < " << slime->GetMaxHp() / 2 << "（低于这个血量就会分裂）\n\n";
-    player->DisplayInfo();
-    slime->DisplayInfo();
-    std::cout << "\n按 Enter 开始...";
-    std::cin.get();
-
-    int round = 0;
-    while (slime->IsAlive() && player->IsAlive() && round < 10) {
-        int frames = ATBTest::FastForwardToNextAction(player.get(), enemies);
-        auto predictions = ATBTest::PredictNextActors(ATBTest::BuildUnitList(player.get(), enemies));
-        round++;
-
-        DrawSeparator("第 " + std::to_string(round) + " 次行动 (推进 " + std::to_string(frames) + " 帧)");
-        ATBTest::ShowActionOrder(predictions);
-
-        auto queue = ATBTest::CollectReadyActors(player.get(), enemies);
-
-        for (auto& entry : queue) {
-            if (entry.isPlayer) {
-                player->ResetGauge();
-                std::cout << "\n>>> 玩家行动 -> 普通攻击\n";
-                player->NormalAttack(slime.get());
-                std::cout << "\n[结算] 玩家 HP:" << player->GetHp()
-                          << "  史莱姆 HP:" << slime->GetHp() << "/" << slime->GetMaxHp() << "\n";
-                std::cout << "按 Enter 继续...";
-                std::cin.get();
-            }
-            else {
-                auto& enemy = enemies[entry.enemyIndex];
-                if (!enemy->IsAlive()) continue;
-                enemy->ResetGauge();
-                std::cout << "\n>>> " << enemy->GetName() << " 行动\n";
-                auto spawned = enemy->PerformAction(player.get());
-
-                if (!spawned.empty()) {
-                    std::cout << "\n>>> 分裂验证：\n";
-                    auto& newS = spawned[0];
-                    std::cout << "  原始: ATK=" << slime->GetAttackPower()
-                              << " DEF=" << slime->GetDefend()
-                              << " MaxHP=" << slime->GetMaxHp()
-                              << " HP=" << slime->GetHp()
-                              << " LV=" << slime->GetLevel() << "\n";
-                    std::cout << "  分裂: ATK=" << newS->GetAttackPower()
-                              << " DEF=" << newS->GetDefend()
-                              << " MaxHP=" << newS->GetMaxHp()
-                              << " HP=" << newS->GetHp()
-                              << " LV=" << newS->GetLevel() << "\n";
-
-                    bool match = (slime->GetAttackPower() == newS->GetAttackPower()) &&
-                                 (slime->GetDefend() == newS->GetDefend()) &&
-                                 (slime->GetMaxHp() == newS->GetMaxHp()) &&
-                                 (slime->GetLevel() == newS->GetLevel());
-                    std::cout << "  属性继承: " << (match ? "通过 OK" : "失败 X") << "\n";
-
-                    std::cout << "\n[结算] 玩家 HP:" << player->GetHp()
-                              << "  史莱姆 HP:" << slime->GetHp() << "/" << slime->GetMaxHp() << "\n";
-                    std::cout << "按 Enter 继续...";
-                    std::cin.get();
-
-                    round = 99;
-                    break;
-                }
-
-                std::cout << "\n[结算] 玩家 HP:" << player->GetHp()
-                          << "  史莱姆 HP:" << slime->GetHp() << "/" << slime->GetMaxHp() << "\n";
-                std::cout << "按 Enter 继续...";
-                std::cin.get();
-            }
-
-            if (!player->IsAlive() || !slime->IsAlive()) break;
-        }
-    }
-
-    std::cout << "\n按 Enter 继续...";
-    std::cin.get();
-}
-
-// ================================================================
-//  TestFullBattle - 完整 ATB 多对多战斗
-// ================================================================
-void GameManager::TestFullBattle()
-{
-    ClearScreen();
-    DrawSeparator("测试3：完整ATB战斗 - 多敌人+技能+分裂");
-
-    auto player = std::make_shared<Player>("战士·剑心");
-    player->SetPhysicalResistance(0.05);
-    player->SetMagicalResistance(0.03);
-    player->AddSkill(std::make_shared<PhysicalSkill>("强力挥斩", 1.5, 15, ElementType::Neutral));
-    player->AddSkill(std::make_shared<PhysicalSkill>("破甲突刺", 1.8, 25, ElementType::Neutral));
-
-    std::vector<std::shared_ptr<Enemy>> enemies;
-    enemies.push_back(std::make_shared<Slime>(1));
-    enemies.push_back(std::make_shared<Slime>(2));
-    enemies.push_back(std::make_shared<Slime>(4));
-
-    std::cout << "玩家 SPD=" << player->GetSpeed() << "\n";
-    for (auto& e : enemies)
-        std::cout << e->GetName() << " SPD=" << e->GetSpeed() << "\n";
-    std::cout << "\n";
-    player->DisplayInfo();
-    std::cout << "\n敌方阵容 (" << enemies.size() << " 个)：\n";
-    for (auto& e : enemies) e->DisplayInfo();
-    std::cout << "\n按 Enter 开始...";
-    std::cin.get();
-
-    bool battleOver = false;
-    int round = 0;
-
-    while (!battleOver) {
-        int frames = ATBTest::FastForwardToNextAction(player.get(), enemies);
-        auto predictions = ATBTest::PredictNextActors(ATBTest::BuildUnitList(player.get(), enemies));
-        DrawSeparator("行动 #" + std::to_string(++round) + " (推进 " + std::to_string(frames) + " 帧)");
-        ATBTest::ShowActionOrder(predictions);
-
-        auto queue = ATBTest::CollectReadyActors(player.get(), enemies);
-
-        for (auto& entry : queue) {
-            if (!player->IsAlive()) { battleOver = true; break; }
-
-            if (entry.isPlayer) {
-                player->ResetGauge();
-
-                bool anyAlive = false;
-                for (auto& e : enemies)
-                    if (e->IsAlive()) { anyAlive = true; break; }
-                if (!anyAlive) {
-                    std::cout << "\n所有敌人已消灭！\n";
-                    battleOver = true;
-                    break;
-                }
-
-                std::cout << "\n>>> 你的回合！\n";
-                std::cout << "HP:" << player->GetHp() << "/" << player->GetMaxHp()
-                          << "  MP:" << player->GetMp() << "/" << player->GetMaxMp() << "\n\n";
-                std::cout << "  [1] 普通攻击\n";
-                std::cout << "  [2] 强力挥斩 (15蓝, 1.5x)\n";
-                std::cout << "  [3] 破甲突刺 (25蓝, 1.8x)\n";
-                std::cout << "  [Q] 退出\n";
-                std::cout << "请输入: ";
-
-                char act;
-                std::cin >> act;
-                std::cin.ignore();
-                if (act == 'Q' || act == 'q') { battleOver = true; break; }
-                if (act < '1' || act > '3') { std::cout << "跳过。\n"; continue; }
-
-                std::cout << "\n选择目标:\n";
-                for (size_t i = 0; i < enemies.size(); ++i)
-                    if (enemies[i]->IsAlive())
-                        std::cout << "  [" << i << "] " << enemies[i]->GetName()
-                                  << " HP:" << enemies[i]->GetHp() << "/" << enemies[i]->GetMaxHp() << "\n";
-                std::cout << "目标编号: ";
-
-                int tgt;
-                if (!(std::cin >> tgt) || tgt < 0 || tgt >= (int)enemies.size() || !enemies[tgt]->IsAlive()) {
-                    std::cin.clear();
-                    std::cin.ignore(1000, '\n');
-                    std::cout << "无效目标，跳过。\n";
-                    continue;
-                }
-                std::cin.ignore();
-
-                switch (act) {
-                case '1': player->NormalAttack(enemies[tgt].get()); break;
-                case '2': player->UseSkill(0, enemies[tgt].get()); break;
-                case '3': player->UseSkill(1, enemies[tgt].get()); break;
-                }
-
-                std::cout << "\n[结算] 玩家 HP:" << player->GetHp() << "/" << player->GetMaxHp()
-                          << " MP:" << player->GetMp() << "/" << player->GetMaxMp() << "\n";
-                std::cout << "目标 " << enemies[tgt]->GetName()
-                          << " HP:" << enemies[tgt]->GetHp() << "/" << enemies[tgt]->GetMaxHp() << "\n";
-                std::cout << "按 Enter 继续...";
-                std::cin.get();
-            }
-            else {
-                auto& enemy = enemies[entry.enemyIndex];
-                if (!enemy->IsAlive()) continue;
-                enemy->ResetGauge();
-                std::cout << "\n>>> " << enemy->GetName() << " 行动！(SPD=" << enemy->GetSpeed() << ")\n";
-                auto spawned = enemy->PerformAction(player.get());
-
-                for (auto& s : spawned) {
-                    enemies.push_back(s);
-                    std::cout << "  >>> 新 " << s->GetName() << " 加入战场！\n";
-                }
-
-                std::cout << "\n[结算] 玩家 HP:" << player->GetHp() << "/" << player->GetMaxHp()
-                          << " MP:" << player->GetMp() << "/" << player->GetMaxMp() << "\n";
-                std::cout << "按 Enter 继续...";
-                std::cin.get();
-            }
-
-            if (!player->IsAlive()) {
-                std::cout << "\n玩家被击败！\n";
-                battleOver = true;
-                break;
-            }
-        }
-
-        if (battleOver) break;
-
-        std::vector<std::shared_ptr<Enemy>> alive;
-        for (auto& e : enemies)
-            if (e->IsAlive()) alive.push_back(e);
-        enemies = alive;
-
-        if (enemies.empty()) {
-            std::cout << "\n所有敌人被击败！战斗胜利！\n";
-            battleOver = true;
+        if (attrChoice == 'Q' || attrChoice == 'q')
+        {
+            allocating = false;
             break;
         }
 
-        if (round >= 30) {
-            std::cout << "\n超过30轮，自动结束。\n";
-            battleOver = true;
+        int attrIndex = attrChoice - '0';
+        if (attrIndex >= 1 && attrIndex <= 8)
+        {
+            player->AllocateAttribute(attrIndex);
         }
+        else
+        {
+            std::cout << "无效的属性编号！" << std::endl;
+        }
+
+        if (player->GetAvailableAP() <= 0)
+        {
+            std::cout << "属性点已用完！" << std::endl;
+            allocating = false;
+        }
+
+        WaitForKeyPress();
     }
 
-    std::cout << "\n按 Enter 返回...";
-    std::cin.get();
+    if (player->GetAvailableAP() <= 0)
+    {
+        std::cout << "当前没有可分配的属性点。升级后可获得更多 AP！" << std::endl;
+        WaitForKeyPress();
+    }
 }
 
 // ================================================================
-//  TestAllClasses - 三种职业对比
+//  角色详情
 // ================================================================
-void GameManager::TestAllClasses()
+
+void GameManager::ShowCharacterDetail() const
 {
-    ClearScreen();
-    DrawSeparator("测试4：三种职业 vs 史莱姆（ATB速度对比）");
+    UIManager::ClearScreen();
+    std::cout << "╔════════════════════════════════════════════════════════════════╗" << std::endl;
+    std::cout << "║                      角色详细信息                             ║" << std::endl;
+    std::cout << "╠════════════════════════════════════════════════════════════════╣" << std::endl;
+    std::cout << "║ ";
+    currentCharacter->DisplayInfo();
+    std::cout << "║" << std::endl;
+    std::cout << "╚════════════════════════════════════════════════════════════════╝" << std::endl;
+    WaitForKeyPress();
+}
 
-    auto warrior = std::make_shared<Player>("战士·剑心");
-    warrior->SetPhysicalResistance(0.05);
-    warrior->SetMagicalResistance(0.03);
-    warrior->AddSkill(std::make_shared<PhysicalSkill>("强力挥斩", 1.5, 15, ElementType::Neutral));
+// ================================================================
+//  测试入口（委托给 TestManager）
+// ================================================================
 
-    auto mage = std::make_shared<Mage>("法师·火焰", 35);
-    mage->SetPhysicalResistance(0.0);
-    mage->SetMagicalResistance(0.15);
-    mage->AddSkill(std::make_shared<MagicalSkill>("火焰术", 1.8, 30, 35, ElementType::Fire));
+void GameManager::TestElementSystemQuick()
+{
+    TestManager::TestElementSystemQuick();
+}
 
-    auto braver = std::make_shared<Braver>("勇者·破晓");
-    braver->SetPhysicalResistance(0.0);
-    braver->SetMagicalResistance(0.05);
-    braver->AddSkill(std::make_shared<TrueSkill>("刺客之刃", 30, 20));
+void GameManager::TestInventoryQuick()
+{
+    TestManager::TestInventoryQuick();
+}
 
-    struct TestCase { std::shared_ptr<Player> player; std::string className; };
-    std::vector<TestCase> cases = {
-        { warrior, "战士" },
-        { mage,    "法师" },
-        { braver,  "勇者" }
-    };
-
-    for (auto& tc : cases) {
-        auto slime = std::make_shared<Slime>(3);
-        std::vector<std::shared_ptr<Enemy>> enemies;
-        enemies.push_back(slime);
-
-        std::cout << "\n========================================\n";
-        std::cout << tc.className << " SPD=" << tc.player->GetSpeed()
-                  << " vs 史莱姆 SPD=" << slime->GetSpeed() << "\n";
-        std::cout << "========================================\n";
-        tc.player->DisplayInfo();
-        slime->DisplayInfo();
-
-        int round = 0;
-        while (tc.player->IsAlive() && slime->IsAlive() && round < 3) {
-            int frames = ATBTest::FastForwardToNextAction(tc.player.get(), enemies);
-            auto predictions = ATBTest::PredictNextActors(ATBTest::BuildUnitList(tc.player.get(), enemies));
-            round++;
-
-            std::cout << "\n[行动 #" << round << " 推进" << frames << "帧] ";
-            ATBTest::ShowActionOrder(predictions);
-
-            auto queue = ATBTest::CollectReadyActors(tc.player.get(), enemies);
-
-            for (auto& entry : queue) {
-                if (entry.isPlayer) {
-                    tc.player->ResetGauge();
-                    if (round == 1)
-                        tc.player->NormalAttack(slime.get());
-                    else
-                        tc.player->UseSkill(0, slime.get());
-
-                    std::cout << "[结算] " << tc.className << " HP:" << tc.player->GetHp()
-                              << "  史莱姆 HP:" << slime->GetHp() << "\n";
-                    std::cout << "按 Enter 继续...";
-                    std::cin.get();
-                }
-                else {
-                    auto& enemy = enemies[entry.enemyIndex];
-                    if (!enemy->IsAlive()) continue;
-                    enemy->ResetGauge();
-                    auto spawned = enemy->PerformAction(tc.player.get());
-                    if (!spawned.empty())
-                        std::cout << "  (分裂!)\n";
-
-                    std::cout << "[结算] " << tc.className << " HP:" << tc.player->GetHp()
-                              << "  史莱姆 HP:" << slime->GetHp() << "\n";
-                    std::cout << "按 Enter 继续...";
-                    std::cin.get();
-                }
-
-                if (!tc.player->IsAlive() || !slime->IsAlive()) break;
-            }
-        }
-
-        std::cout << "\n最终: " << tc.className
-                  << " HP=" << tc.player->GetHp() << "/" << tc.player->GetMaxHp()
-                  << "  史莱姆 HP=" << slime->GetHp() << "/" << slime->GetMaxHp() << "\n";
-    }
-
-    std::cout << "\n按 Enter 继续...";
-    std::cin.get();
+void GameManager::TestFullBattleQuick()
+{
+    TestManager::TestFullBattleQuick();
 }
 */
 #include "GameManager.h"

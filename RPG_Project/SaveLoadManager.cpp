@@ -6,24 +6,16 @@
 #include <iostream>
 #include <cstring>
 #include <cstdint>
+#include <memory>
 
 // ============================================================
 //                      保存游戏
 // ============================================================
 
-/**
- * @brief 保存游戏到二进制文件
- * 
- * 文件格式：
- * 1. 名称长度(uint32_t) + 名称字符数组
- * 2. 基础属性：hp, maxHp, mp, maxMp, level, exp, atk, def, spd, gold
- * 3. 背包：物品数量(uint32_t) + 每个物品(类型+参数)
- */
 void SaveLoadManager::SaveGame(const Player& player, const std::string& filename)
 {
-    // 打开文件（二进制写入模式）
     std::ofstream outFile(filename, std::ios::binary);
-    
+
     if (!outFile.is_open())
     {
         std::cout << "错误：无法打开存档文件 " << filename << " 进行写入！" << std::endl;
@@ -33,11 +25,8 @@ void SaveLoadManager::SaveGame(const Player& player, const std::string& filename
     // ========== 保存玩家名称 ==========
     std::string name = player.GetName();
     uint32_t nameLength = static_cast<uint32_t>(name.size());
-    
-    // 写入名称长度
+
     outFile.write(reinterpret_cast<const char*>(&nameLength), sizeof(nameLength));
-    
-    // 写入名称字符数组
     outFile.write(name.c_str(), nameLength);
 
     // ========== 保存基础属性 ==========
@@ -47,12 +36,11 @@ void SaveLoadManager::SaveGame(const Player& player, const std::string& filename
     int maxMp = player.GetMaxMp();
     int level = player.GetLevel();
     int exp = player.GetExperience();
-    int atk = player.GetAttackPower();
+    int atk = player.GetBaseAttackPower();  // 保存基础攻击力（不含武器）
     int def = player.GetDefend();
-    int spd = player.GetSpeed();
+    int spd = player.GetBaseSpeed();        // 保存基础速度
     int gold = player.GetGold();
 
-    // 写入各属性
     outFile.write(reinterpret_cast<const char*>(&hp), sizeof(hp));
     outFile.write(reinterpret_cast<const char*>(&maxHp), sizeof(maxHp));
     outFile.write(reinterpret_cast<const char*>(&mp), sizeof(mp));
@@ -67,48 +55,39 @@ void SaveLoadManager::SaveGame(const Player& player, const std::string& filename
     // ========== 保存背包物品 ==========
     const Inventory& inv = player.inventory;
     uint32_t itemCount = static_cast<uint32_t>(inv.GetItemCount());
-    
-    // 写入物品数量
+
     outFile.write(reinterpret_cast<const char*>(&itemCount), sizeof(itemCount));
 
-    // 遍历每个物品并保存
     for (uint32_t i = 0; i < itemCount; ++i)
     {
         Item* item = inv.GetItem(static_cast<int>(i));
-        
+
         if (item == nullptr)
         {
-            // 写入无效类型标识
             uint8_t itemType = 0;
             outFile.write(reinterpret_cast<const char*>(&itemType), sizeof(itemType));
             continue;
         }
 
-        // 判断物品类型并写入
         Potion* potion = dynamic_cast<Potion*>(item);
         Weapon* weapon = dynamic_cast<Weapon*>(item);
 
         if (potion)
         {
-            // 类型标识：1 = Potion
             uint8_t itemType = 1;
             outFile.write(reinterpret_cast<const char*>(&itemType), sizeof(itemType));
-            
-            // 写入药水类型
+
             uint8_t potionType = static_cast<uint8_t>(potion->GetType());
             outFile.write(reinterpret_cast<const char*>(&potionType), sizeof(potionType));
-            
-            // 写入效果数值
+
             int amount = potion->GetAmount();
             outFile.write(reinterpret_cast<const char*>(&amount), sizeof(amount));
-            
-            // 写入名称
+
             std::string name = potion->GetName();
             uint32_t nameLen = static_cast<uint32_t>(name.size());
             outFile.write(reinterpret_cast<const char*>(&nameLen), sizeof(nameLen));
             outFile.write(name.c_str(), nameLen);
-            
-            // 写入描述
+
             std::string desc = potion->GetDescription();
             uint32_t descLen = static_cast<uint32_t>(desc.size());
             outFile.write(reinterpret_cast<const char*>(&descLen), sizeof(descLen));
@@ -116,15 +95,12 @@ void SaveLoadManager::SaveGame(const Player& player, const std::string& filename
         }
         else if (weapon)
         {
-            // 类型标识：2 = Weapon
             uint8_t itemType = 2;
             outFile.write(reinterpret_cast<const char*>(&itemType), sizeof(itemType));
-            
-            // 写入武器类型
+
             uint8_t weaponType = static_cast<uint8_t>(weapon->GetType());
             outFile.write(reinterpret_cast<const char*>(&weaponType), sizeof(weaponType));
-            
-            // 写入属性加成
+
             int attack = weapon->GetAttackBonus();
             int agility = weapon->GetAgilityBonus();
             int speed = weapon->GetSpeedBonus();
@@ -133,14 +109,12 @@ void SaveLoadManager::SaveGame(const Player& player, const std::string& filename
             outFile.write(reinterpret_cast<const char*>(&agility), sizeof(agility));
             outFile.write(reinterpret_cast<const char*>(&speed), sizeof(speed));
             outFile.write(reinterpret_cast<const char*>(&defense), sizeof(defense));
-            
-            // 写入名称
+
             std::string name = weapon->GetName();
             uint32_t nameLen = static_cast<uint32_t>(name.size());
             outFile.write(reinterpret_cast<const char*>(&nameLen), sizeof(nameLen));
             outFile.write(name.c_str(), nameLen);
-            
-            // 写入描述
+
             std::string desc = weapon->GetDescription();
             uint32_t descLen = static_cast<uint32_t>(desc.size());
             outFile.write(reinterpret_cast<const char*>(&descLen), sizeof(descLen));
@@ -148,7 +122,6 @@ void SaveLoadManager::SaveGame(const Player& player, const std::string& filename
         }
         else
         {
-            // 未知类型
             uint8_t itemType = 0;
             outFile.write(reinterpret_cast<const char*>(&itemType), sizeof(itemType));
         }
@@ -162,17 +135,10 @@ void SaveLoadManager::SaveGame(const Player& player, const std::string& filename
 //                      加载游戏
 // ============================================================
 
-/**
- * @brief 从二进制文件加载游戏
- * 
- * 按照保存的顺序读取数据，重建玩家对象。
- * 处理文件不存在或格式错误的情况。
- */
 bool SaveLoadManager::LoadGame(Player& player, const std::string& filename)
 {
-    // 打开文件（二进制读取模式）
     std::ifstream inFile(filename, std::ios::binary);
-    
+
     if (!inFile.is_open())
     {
         std::cout << "错误：存档文件 " << filename << " 不存在！" << std::endl;
@@ -182,7 +148,7 @@ bool SaveLoadManager::LoadGame(Player& player, const std::string& filename)
     // ========== 读取玩家名称 ==========
     uint32_t nameLength;
     inFile.read(reinterpret_cast<char*>(&nameLength), sizeof(nameLength));
-    
+
     if (!inFile.good())
     {
         std::cout << "错误：存档文件格式错误（读取名称长度失败）！" << std::endl;
@@ -190,14 +156,13 @@ bool SaveLoadManager::LoadGame(Player& player, const std::string& filename)
         return false;
     }
 
-    // 读取名称字符数组
     std::string name;
     name.resize(nameLength);
     inFile.read(&name[0], nameLength);
 
     // ========== 读取基础属性 ==========
     int hp, maxHp, mp, maxMp, level, exp, atk, def, spd, gold;
-    
+
     inFile.read(reinterpret_cast<char*>(&hp), sizeof(hp));
     inFile.read(reinterpret_cast<char*>(&maxHp), sizeof(maxHp));
     inFile.read(reinterpret_cast<char*>(&mp), sizeof(mp));
@@ -217,22 +182,21 @@ bool SaveLoadManager::LoadGame(Player& player, const std::string& filename)
     }
 
     // ========== 应用读取的数据到玩家对象 ==========
-    // 使用 setter 方法恢复所有属性
     player.SetHp(hp);
     player.SetMaxHp(maxHp);
     player.SetMp(mp);
     player.SetMaxMp(maxMp);
     player.SetLevel(level);
     player.SetExperience(exp);
-    player.SetAttackPower(atk);
+    player.SetAttackPower(atk);   // 设置基础攻击力
     player.SetDefend(def);
-    player.SetSpeed(spd);
+    player.SetSpeed(spd);         // 设置基础速度
     player.SetGold(gold);
 
     // ========== 读取背包物品 ==========
     uint32_t itemCount;
     inFile.read(reinterpret_cast<char*>(&itemCount), sizeof(itemCount));
-    
+
     if (!inFile.good())
     {
         std::cout << "错误：存档文件格式错误（读取物品数量失败）！" << std::endl;
@@ -251,7 +215,7 @@ bool SaveLoadManager::LoadGame(Player& player, const std::string& filename)
     {
         uint8_t itemType;
         inFile.read(reinterpret_cast<char*>(&itemType), sizeof(itemType));
-        
+
         if (!inFile.good())
         {
             std::cout << "警告：部分物品读取失败！" << std::endl;
@@ -262,56 +226,51 @@ bool SaveLoadManager::LoadGame(Player& player, const std::string& filename)
         {
             uint8_t potionType;
             inFile.read(reinterpret_cast<char*>(&potionType), sizeof(potionType));
-            
+
             int amount;
             inFile.read(reinterpret_cast<char*>(&amount), sizeof(amount));
-            
-            // 读取名称
+
             uint32_t nameLen;
             inFile.read(reinterpret_cast<char*>(&nameLen), sizeof(nameLen));
             std::string name(nameLen, '\0');
             inFile.read(&name[0], nameLen);
-            
-            // 读取描述
+
             uint32_t descLen;
             inFile.read(reinterpret_cast<char*>(&descLen), sizeof(descLen));
             std::string desc(descLen, '\0');
             inFile.read(&desc[0], descLen);
-            
-            // 创建新药水并加入背包
-            Item* potion = new Potion(amount, static_cast<PotionType>(potionType), name, desc);
-            player.inventory.AddItem(potion);
+
+            player.inventory.AddItem(
+                std::make_unique<Potion>(amount, static_cast<PotionType>(potionType), name, desc)
+            );
         }
         else if (itemType == 2)  // Weapon
         {
             uint8_t weaponType;
             inFile.read(reinterpret_cast<char*>(&weaponType), sizeof(weaponType));
-            
+
             int attack, agility, speed, defense;
             inFile.read(reinterpret_cast<char*>(&attack), sizeof(attack));
             inFile.read(reinterpret_cast<char*>(&agility), sizeof(agility));
             inFile.read(reinterpret_cast<char*>(&speed), sizeof(speed));
             inFile.read(reinterpret_cast<char*>(&defense), sizeof(defense));
-            
-            // 读取名称
+
             uint32_t nameLen;
             inFile.read(reinterpret_cast<char*>(&nameLen), sizeof(nameLen));
             std::string name(nameLen, '\0');
             inFile.read(&name[0], nameLen);
-            
-            // 读取描述
+
             uint32_t descLen;
             inFile.read(reinterpret_cast<char*>(&descLen), sizeof(descLen));
             std::string desc(descLen, '\0');
             inFile.read(&desc[0], descLen);
-            
-            // 创建新武器并加入背包
-            Item* weapon = new Weapon(attack, agility, speed, defense, static_cast<WeaponType>(weaponType), name, desc);
-            player.inventory.AddItem(weapon);
+
+            player.inventory.AddItem(
+                std::make_unique<Weapon>(attack, agility, speed, defense, static_cast<WeaponType>(weaponType), name, desc)
+            );
         }
         else
         {
-            // 未知类型，跳过
             std::cout << "警告：发现未知物品类型，已跳过。" << std::endl;
         }
     }

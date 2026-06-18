@@ -46,7 +46,7 @@ void Potion::Use(Character* user)
     }
 }
 
-Item* Potion::Clone() const { return new Potion(*this); }
+std::unique_ptr<Item> Potion::Clone() const { return std::make_unique<Potion>(*this); }
 
 // ============================================================
 //                      Weapon 类实现
@@ -66,23 +66,21 @@ std::string Weapon::GetDescription() const { return description; }
 
 void Weapon::Use(Character* user)
 {
+    // 武器不再直接修改属性，而是通过 Player::EquipWeapon() 装备
+    // Use() 保留仅用于向后兼容：提示用户使用装备系统
     if (user != nullptr)
     {
-        user->SetAttackPower(user->GetAttackPower() + attackBonus);
-        user->SetAgility(user->GetAgility() + agilityBonus);
-        user->SetSpeed(user->GetSpeed() + speedBonus);
-        user->SetSpellDefense(user->GetSpellDefense() + defenseBonus);
-        
-        std::cout << user->GetName() << " 装备了 " << name << "！" << std::endl;
+        std::cout << user->GetName() << " 拿起了 " << name << "。" << std::endl;
+        std::cout << "  （提示：请通过背包装备界面装备武器，而非使用此功能）" << std::endl;
         if (attackBonus != 0)
-            std::cout << " 攻击力 " << (attackBonus > 0 ? "+" : "") << attackBonus << std::endl;
+            std::cout << "  攻击力 " << (attackBonus > 0 ? "+" : "") << attackBonus << std::endl;
         if (agilityBonus != 0)
-            std::cout << " 灵巧 " << (agilityBonus > 0 ? "+" : "") << agilityBonus << std::endl;
+            std::cout << "  灵巧 " << (agilityBonus > 0 ? "+" : "") << agilityBonus << std::endl;
         if (speedBonus != 0)
-            std::cout << " 速度 " << (speedBonus > 0 ? "+" : "") << speedBonus << std::endl;
+            std::cout << "  速度 " << (speedBonus > 0 ? "+" : "") << speedBonus << std::endl;
         if (defenseBonus != 0)
-            std::cout << " 法术防御 " << (defenseBonus > 0 ? "+" : "") << defenseBonus << std::endl;
+            std::cout << "  法术防御 " << (defenseBonus > 0 ? "+" : "") << defenseBonus << std::endl;
     }
 }
 
-Item* Weapon::Clone() const { return new Weapon(*this); }
+std::unique_ptr<Item> Weapon::Clone() const { return std::make_unique<Weapon>(*this); }
