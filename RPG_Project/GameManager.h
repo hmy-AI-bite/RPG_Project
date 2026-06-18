@@ -27,6 +27,9 @@ private:
     // 怪物列表（当前场景中的所有怪物）
     std::vector<std::shared_ptr<Enemy>> enemies;
 
+    // 玩家昵称
+    std::string playerNickname;
+
 public:
     GameManager();
     ~GameManager();
@@ -64,7 +67,19 @@ public:
     // 显示所有角色的列表
     void DisplayCharacterList() const;
 
-    // ========== 游戏主循环 ==========
+    // ========== 游戏主界面与流程 ==========
+
+    // 标题画面（开始游戏 / 加载存档 / 退出）
+    void ShowTitleScreen();
+
+    // 创建角色流程（选择职业 → 输入昵称 → 初始物品 → 技能学习）
+    void CreateCharacterFlow();
+
+    // 技能学习界面（学习职业技能）
+    void SkillLearningFlow(Player* player);
+
+    // 进入游戏（初始化完成后进入主循环）
+    void EnterGame();
 
     // 开始游戏！不断显示面板→显示菜单→处理操作→循环
     void Run();
@@ -87,11 +102,23 @@ public:
     static void WaitForKeyPress();
 
 private:
-    // 处理玩家的菜单选择
-    void HandleAction();
+    // 处理玩家的菜单选择，返回 false 表示返回标题画面
+    bool HandleAction();
 
     // 刷新主控面板
     void UpdateDashboard() const;
+
+    // 生成怪物遭遇战（根据玩家等级随机生成怪物）
+    void BattleEncounter();
+
+    // ATB 战斗主循环（玩家 vs 怪物列表）
+    // 返回 true = 胜利，false = 逃跑/失败
+    bool RunBattle(std::vector<std::shared_ptr<Enemy>>& enemies);
+
+    // 使用技能（交互式选择技能和目标）
+    void UseSkillInteractively(Player* player);
+
+    // ========== 调试/测试（保留但不在菜单显示）==========
 
     // 演示伤害计算系统（展示物理/魔法/真实伤害的计算过程）
     void DemonstrateDamageSystem();
@@ -101,8 +128,6 @@ private:
 
     // 测试史莱姆战斗
     void TestSlime();
-
-    // ========== ATB 战斗测试 ==========
 
     // 测试1：ATB 1v1 - 手动操作 vs 史莱姆
     void TestATB_1v1();
