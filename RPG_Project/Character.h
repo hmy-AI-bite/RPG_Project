@@ -3,7 +3,10 @@
 #include <vector>
 #include <memory>
 #include "DamageSystem.h"
-#include "Inventory.h"
+
+// 前向声明
+class Inventory;
+class Weapon;
 
 // ================================================================
 //  行动条相关常数
@@ -76,6 +79,9 @@ public:
     // 在屏幕上打印角色的所有属性
     virtual void DisplayInfo() const;
 
+    // 显示职业特有信息（子类重写，消除 dynamic_cast）
+    virtual void DisplayClassSpecificInfo() const {}
+
     // ========== 攻击相关 ==========
 
     // 通用物理攻击：对目标造成物理伤害
@@ -88,12 +94,12 @@ public:
     std::string GetName() const { return name; }
     int GetHp() const { return hp; }
     int GetMaxHp() const { return maxHp; }
-    int GetAttackPower() const { return attackPower; }
+    virtual int GetAttackPower() const { return attackPower; }
     int GetLevel() const { return level; }
     int GetDefend() const { return defend; }
-    int GetAgility() const { return agility; }
-    int GetSpeed() const { return speed; }
-    int GetSpellDefense() const { return spellDefense; }
+    virtual int GetAgility() const { return agility; }
+    virtual int GetSpeed() const { return speed; }
+    virtual int GetSpellDefense() const { return spellDefense; }
     int GetCurrentGauge() const { return currentGauge; }
     ElementType GetElementType() const { return elementType; }
     ResistanceProfile GetResistance() const { return resistance; }
@@ -112,8 +118,11 @@ public:
     void SetDefend(int value) { defend = value; }
 };
 
-// 前向声明：告诉编译器"Skill 类在后面定义了，先别着急"
+// 前向声明：告诉编译器"这些类在后面定义了，先别着急"
 class Skill;
+
+// Player 需要 Inventory 的完整定义（因为有 inventory 成员变量）
+#include "Inventory.h"
 
 // ================================================================
 //  Player 类 - 玩家角色（继承自 Character）
@@ -129,6 +138,9 @@ protected:
 
     // 技能列表：玩家学会的所有技能都存在这里
     std::vector<std::shared_ptr<Skill>> skills;
+
+    // 装备槽：装备的武器（nullptr = 未装备）
+    Weapon* equippedWeapon;
 
 public:
     Inventory inventory;    // 背包（可以装药水、装备等道具）
@@ -159,6 +171,30 @@ public:
 
     // 获取背包
     Inventory& GetInventory() { return inventory; }
+
+    // ========== 装备系统 ==========
+    // 装备武器（会先卸下当前武器）
+    void EquipWeapon(Weapon* weapon);
+    // 卸下武器（归还到背包，不删除）
+    Weapon* UnequipWeapon();
+    // 获取当前装备的武器
+    Weapon* GetEquippedWeapon() const { return equippedWeapon; }
+    // 动态计算攻击力（基础 + 武器加成）
+    int GetAttackPower() const;
+    // 动态计算灵巧（基础 + 武器加成）
+    int GetAgility() const;
+    // 动态计算速度（基础 + 武器加成）
+    int GetSpeed() const;
+    // 动态计算法防（基础 + 武器加成）
+    int GetSpellDefense() const;
+    // 获取基础攻击力（不含武器加成）
+    int GetBaseAttackPower() const { return attackPower; }
+    // 获取基础灵巧
+    int GetBaseAgility() const { return agility; }
+    // 获取基础速度
+    int GetBaseSpeed() const { return speed; }
+    // 获取基础法防
+    int GetBaseSpellDefense() const { return spellDefense; }
 
     // ========== 蓝量（MP）相关 ==========
     void ConsumeMp(int amount);     // 消耗蓝量（放技能时用）
@@ -213,6 +249,7 @@ public:
     void IncreaseRage(int amount);  // 增加怒气（被打时触发）
     void ExecuteTrueAttack(Character* target);       // 刺客之刃（真实伤害，无视防御！）
     virtual void DisplayInfo() const override;
+    virtual void DisplayClassSpecificInfo() const override;
     virtual void LevelUp() override;                 // 勇者专属升级（获得 AP，可自由分配）
     virtual bool AllocateAttribute(int attrIndex) override;  // 勇者专属加点
 
@@ -236,6 +273,7 @@ public:
 
     void CastSpell(int mpCost);     // 施放法术（消耗蓝量）
     virtual void DisplayInfo() const override;
+    virtual void DisplayClassSpecificInfo() const override;
     virtual void LevelUp() override;                      // 法师专属升级（获得 AP，可自由分配）
     virtual bool AllocateAttribute(int attrIndex) override;  // 法师专属加点
 
@@ -272,6 +310,7 @@ public:
 
     // 显示守护骑士信息（包括护盾值）
     virtual void DisplayInfo() const override;
+    virtual void DisplayClassSpecificInfo() const override;
 
     virtual void LevelUp() override;                      // 守护骑士专属升级（获得 AP，可自由分配）
     virtual bool AllocateAttribute(int attrIndex) override;  // 守护骑士专属加点

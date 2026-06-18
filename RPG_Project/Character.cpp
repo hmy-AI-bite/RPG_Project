@@ -1,5 +1,6 @@
 #include "Character.h"
 #include "Inventory.h"
+#include "Item.h"
 #include "Skill.h"
 #include <iostream>
 
@@ -152,11 +153,11 @@ DamageInfo Character::PerformPhysicalAttack(Character* target, double skillRatio
 void Character::DisplayInfo() const
 {
     std::cout << "[" << name << "] 生命值: " << hp << "/" << maxHp
-              << ", 攻击: " << attackPower
+              << ", 攻击: " << GetAttackPower()
               << ", 防御: " << defend
-              << ", 法防: " << spellDefense
-              << ", 灵巧: " << agility
-              << ", 速度: " << speed
+              << ", 法防: " << GetSpellDefense()
+              << ", 灵巧: " << GetAgility()
+              << ", 速度: " << GetSpeed()
               << ", 等级: " << level << std::endl;
 }
 
@@ -170,7 +171,7 @@ void Character::DisplayInfo() const
 // 默认创建战士类型的玩家：
 //   血量 120、攻击 20、防御 10、蓝量 50、金币 100
 Player::Player(const std::string& name)
-    : Character(name, 120, 20, 10, 1), experience(0), maxMp(50), mp(50), availableAP(0), gold(100)
+    : Character(name, 120, 20, 10, 1), experience(0), maxMp(50), mp(50), availableAP(0), gold(100), equippedWeapon(nullptr)
 {
     // 战士属性：均衡型，能抗能打
     hp = maxHp;                 // 初始满血
@@ -182,6 +183,66 @@ Player::Player(const std::string& name)
 
 Player::~Player()
 {
+}
+
+// ========== 装备系统 ==========
+
+// 动态计算攻击力（基础 + 武器加成）
+int Player::GetAttackPower() const
+{
+    return attackPower + (equippedWeapon ? equippedWeapon->GetAttackBonus() : 0);
+}
+
+// 动态计算灵巧（基础 + 武器加成）
+int Player::GetAgility() const
+{
+    return agility + (equippedWeapon ? equippedWeapon->GetAgilityBonus() : 0);
+}
+
+// 动态计算速度（基础 + 武器加成）
+int Player::GetSpeed() const
+{
+    return speed + (equippedWeapon ? equippedWeapon->GetSpeedBonus() : 0);
+}
+
+// 动态计算法防（基础 + 武器加成）
+int Player::GetSpellDefense() const
+{
+    return spellDefense + (equippedWeapon ? equippedWeapon->GetDefenseBonus() : 0);
+}
+
+// 装备武器（先卸下当前武器，再将新武器放入装备槽）
+void Player::EquipWeapon(Weapon* weapon)
+{
+    // 先卸下当前武器（如果装备了的话）
+    UnequipWeapon();
+
+    // 装备新武器
+    if (weapon)
+    {
+        equippedWeapon = weapon;
+        std::cout << name << " 装备了 " << weapon->GetName() << "！" << std::endl;
+        if (weapon->GetAttackBonus() != 0)
+            std::cout << "  攻击力 " << (weapon->GetAttackBonus() > 0 ? "+" : "") << weapon->GetAttackBonus() << std::endl;
+        if (weapon->GetAgilityBonus() != 0)
+            std::cout << "  灵巧 " << (weapon->GetAgilityBonus() > 0 ? "+" : "") << weapon->GetAgilityBonus() << std::endl;
+        if (weapon->GetSpeedBonus() != 0)
+            std::cout << "  速度 " << (weapon->GetSpeedBonus() > 0 ? "+" : "") << weapon->GetSpeedBonus() << std::endl;
+        if (weapon->GetDefenseBonus() != 0)
+            std::cout << "  法术防御 " << (weapon->GetDefenseBonus() > 0 ? "+" : "") << weapon->GetDefenseBonus() << std::endl;
+    }
+}
+
+// 卸下武器（归还武器指针，不删除）
+Weapon* Player::UnequipWeapon()
+{
+    Weapon* old = equippedWeapon;
+    if (old)
+    {
+        std::cout << name << " 卸下了 " << old->GetName() << std::endl;
+        equippedWeapon = nullptr;
+    }
+    return old;
 }
 
 // ---------- 计算升级所需经验 ----------
@@ -551,13 +612,19 @@ void Braver::DisplayInfo() const
     std::cout << "[勇敢者] " << name
               << " | 生命值: " << hp << "/" << maxHp
               << ", 蓝量: " << mp << "/" << maxMp
-              << ", 攻击: " << attackPower
+              << ", 攻击: " << GetAttackPower()
               << ", 防御: " << defend
-              << ", 灵巧: " << agility
-              << ", 速度: " << speed
+              << ", 灵巧: " << GetAgility()
+              << ", 速度: " << GetSpeed()
               << ", 等级: " << level
               << ", 经验: " << experience
               << ", 怒气: " << rage << "/100" << std::endl;
+}
+
+// 勇者特有信息（消除 dynamic_cast）
+void Braver::DisplayClassSpecificInfo() const
+{
+    std::cout << "│ 怒气值: " << rage << "/100                                                │" << std::endl;
 }
 
 
@@ -696,13 +763,19 @@ void Mage::DisplayInfo() const
     std::cout << "[法师] " << name
               << " | 生命值: " << hp << "/" << maxHp
               << ", 蓝量: " << mp << "/" << maxMp
-              << ", 攻击: " << attackPower
+              << ", 攻击: " << GetAttackPower()
               << ", 法力: " << spellPower
               << ", 防御: " << defend
-              << ", 灵巧: " << agility
-              << ", 速度: " << speed
+              << ", 灵巧: " << GetAgility()
+              << ", 速度: " << GetSpeed()
               << ", 等级: " << level
               << ", 经验: " << experience << std::endl;
+}
+
+// 法师特有信息（消除 dynamic_cast）
+void Mage::DisplayClassSpecificInfo() const
+{
+    std::cout << "│ 法术强度: " << spellPower << "                                                │" << std::endl;
 }
 
 
@@ -845,13 +918,19 @@ void Guardian::DisplayInfo() const
     std::cout << "[守护骑士] " << name
               << " | 生命值: " << hp << "/" << maxHp
               << ", 蓝量: " << mp << "/" << maxMp
-              << ", 攻击: " << attackPower
+              << ", 攻击: " << GetAttackPower()
               << ", 防御: " << defend
-              << ", 灵巧: " << agility
-              << ", 速度: " << speed
+              << ", 灵巧: " << GetAgility()
+              << ", 速度: " << GetSpeed()
               << ", 等级: " << level
               << ", 经验: " << experience
               << ", 护盾: " << shield << "/" << MAX_SHIELD << std::endl;
+}
+
+// 守护骑士特有信息（消除 dynamic_cast）
+void Guardian::DisplayClassSpecificInfo() const
+{
+    std::cout << "│ 护盾值: " << shield << "/" << MAX_SHIELD << "                                                │" << std::endl;
 }
 
 // ---------- 守护骑士专属升级 ----------

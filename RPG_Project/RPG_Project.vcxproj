@@ -127,6 +127,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="BattleSystem.cpp" />
     <ClCompile Include="DamageSystem.cpp" />
     <ClCompile Include="GameManager.cpp" />
     <ClCompile Include="main.cpp" />
@@ -137,14 +138,24 @@
     <ClCompile Include="Inventory.cpp" />
     <ClCompile Include="SaveLoadManager.cpp" />
     <ClCompile Include="Shop.cpp" />
+    <ClCompile Include="TestManager.cpp" />
+    <ClCompile Include="UIManager.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="ATBTest.h" />
+    <ClInclude Include="BattleSystem.h" />
     <ClInclude Include="Character.h" />
     <ClInclude Include="DamageSystem.h" />
+    <ClInclude Include="GameConfig.h" />
     <ClInclude Include="GameManager.h" />
+    <ClInclude Include="Inventory.h" />
     <ClInclude Include="Monster.h" />
+    <ClInclude Include="SaveLoadManager.h" />
+    <ClInclude Include="Shop.h" />
     <ClInclude Include="Skill.h" />
     <ClInclude Include="Item.h" />
+    <ClInclude Include="TestManager.h" />
+    <ClInclude Include="UIManager.h" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="MENU_GUIDE.txt" />
