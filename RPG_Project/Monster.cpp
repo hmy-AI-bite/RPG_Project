@@ -1,274 +1,280 @@
 #include "Monster.h"
+#include "Skill.h"
+#include "Item.h"
 #include <iostream>
-#include <random>
-#include <cmath>
-#include <sstream>
+#include <cstdlib>
 
-// ================================================================
-//  Enemy 基类 - 所有怪物的"爸爸"
-// ================================================================
-
-// ---------- 构造函数 ----------
-// 创建一个怪物，默认没有奖励（经验和金币都是 0，不掉落物品）
+// ========== Enemy 基类 ==========
 Enemy::Enemy(const std::string& name, int maxHp, int attackPower, int defend, int level)
     : Character(name, maxHp, attackPower, defend, level),
-      experienceReward(0), goldReward(0), dropItem(""), dropRate(0.0)
+    experienceReward(0), goldReward(0)
 {
 }
 
-Enemy::~Enemy()
-{
-}
-
-// ---------- 怪物默认行动：普通攻击 ----------
-// 大多数怪物就是简单地普通攻击（倍率 1.0）
-// 返回空列表 {} 表示没有生成新怪物
-std::vector<std::shared_ptr<Enemy>> Enemy::PerformAction(Character* target)
-{
-    PerformPhysicalAttack(target, 1.0, " 发动了普通攻击！");
-    return {};
-}
-
-// ---------- 显示怪物信息 ----------
-// 比普通角色多了：经验奖励、金币奖励
 void Enemy::DisplayInfo() const
 {
     std::cout << "[怪物] " << name
-              << " | 生命值: " << hp << "/" << maxHp
-              << ", 攻击: " << attackPower
-              << ", 防御: " << defend
-              << ", 速度: " << speed
-              << ", 等级: " << level
-              << " | 奖励经验: " << experienceReward
-              << ", 金币: " << goldReward << std::endl;
+        << " | HP:" << hp << "/" << maxHp
+        << " ATK:" << attackPower << " DEF:" << defend
+        << " SPD:" << speed << " LV:" << level
+        << " | EXP:" << experienceReward << " GOLD:" << goldReward << std::endl;
 }
 
-
-// ================================================================
-//  Slime 史莱姆 - 最基础的小怪物
-//
-//  史莱姆的行为规则：
-//    如果当前血量 < 最大血量的一半 → 分裂！
-//      - 生成一个新的史莱姆，属性完全继承当前史莱姆的当前属性
-//      - 分裂后，自己恢复 1/4 最大血量
-//    如果当前血量 >= 最大血量的一半 → 弹跳攻击（1.2 倍伤害）
-// ================================================================
-
-// ---------- 构造函数 ----------
-// 根据等级计算史莱姆的各项属性
-// 公式：
-//   最大血量 = 30 + 等级 × 5      （比如 3 级 = 45 血）
-//   攻击力   = 5  + 等级 × 2      （比如 3 级 = 11 攻击）
-//   防御力   = 1  + 等级          （比如 3 级 = 4 防御）
-//   灵巧     = 20 + 等级 × 2      （比如 3 级 = 26 灵巧）
-//   速度     = 80                 （固定，比较慢）
+// ========== Slime 史莱姆 ==========
 Slime::Slime(int level)
     : Enemy("史莱姆", 50, 8, 2, level), splitHealth(25)
 {
-    // 根据等级重新计算属性
-    this->maxHp = 30 + level * 5;       // 生命值随等级增长
-    this->hp = this->maxHp;             // 初始满血
-    this->attackPower = 5 + level * 2;  // 攻击力随等级增长
-    this->defend = 1 + level;           // 防御力随等级增长
-    this->agility = 20 + level * 2;     // 灵巧随等级增长
-    this->speed = 80;                   // 速度固定 80（比较慢）
-    this->spellDefense = 2;             // 法防很低
-    this->elementType = ElementType::Water;  // 史莱姆是水属性的！
-
-    // 分裂阈值 = 最大血量的一半
-    // 比如 3 级史莱姆 maxHp = 45，低于 22 血就会分裂
-    splitHealth = this->maxHp / 2;
-
-    // 击杀奖励设置
-    this->experienceReward = 20 + level * 5;   // 经验奖励
-    this->goldReward = 10 + level * 3;         // 金币奖励
-    this->SetDropItem("史莱姆胶体", 0.3);      // 30% 概率掉落"史莱姆胶体"
+    maxHp = 30 + level * 5;
+    hp = maxHp;
+    attackPower = 5 + level * 2;
+    defend = 1 + level;
+    agility = 20 + level * 2;
+    speed = 80;
+    spellDefense = 2;
+    elementType = ElementType::Water;
+    splitHealth = maxHp / 2;
+    experienceReward = 20 + level * 5;
+    goldReward = 10 + level * 3;
 }
 
-Slime::~Slime()
-{
-}
-
-// ---------- 史莱姆行动（AI 决策）----------
-//
-//  决策逻辑（像一个简单的小机器人）：
-//    1. 先看自己的血量
-//    2. 如果血量 < 分裂阈值（最大血量的一半）→ 分裂！
-//       - 创建一个新史莱姆，属性 = 当前所有属性（不是初始属性！）
-//       - 自己恢复 1/4 最大血量
-//    3. 如果血量 >= 分裂阈值 → 弹跳攻击（1.2 倍伤害）
-//
-//  返回值：如果分裂了，返回新史莱姆的列表；否则返回空列表
 std::vector<std::shared_ptr<Enemy>> Slime::PerformAction(Character* target)
 {
-    // 判断：血量低于分裂阈值了吗？
     if (hp < splitHealth && hp > 0)
     {
         std::cout << name << " 开始分裂！" << std::endl;
-
-        // ----- 分裂！创建一个新史莱姆 -----
-        // 注意：这里先按等级构造（会用等级计算属性），
-        // 然后立刻用 setter 把属性全部覆盖为当前值
         auto newSlime = std::make_shared<Slime>(level);
+        newSlime->SetMaxHp(maxHp);
+        newSlime->SetHp(hp);
+        newSlime->SetAttackPower(attackPower);
+        newSlime->SetDefend(defend);
+        newSlime->SetLevel(level);
+        newSlime->SetAgility(agility);
+        newSlime->SetSpeed(speed);
+        newSlime->SetSpellDefense(spellDefense);
+        newSlime->SetElementType(elementType);
+        newSlime->SetPhysicalResistance(resistance.physicalResistance);
+        newSlime->SetMagicalResistance(resistance.magicalResistance);
+        newSlime->experienceReward = experienceReward;
+        newSlime->goldReward = goldReward;
 
-        // 复制当前史莱姆的全部属性到新史莱姆
-        // 重要：继承的是"当前属性"，不是"初始最大属性"！
-        // 比如当前史莱姆被打到只有 15/45 血，子史莱姆也是 15/45
-        newSlime->SetMaxHp(maxHp);                  // 最大血量 = 父体当前最大血量
-        newSlime->SetHp(hp);                        // 当前血量 = 父体当前血量
-        newSlime->SetAttackPower(attackPower);      // 攻击力 = 父体当前攻击力
-        newSlime->SetDefend(defend);                // 防御力 = 父体当前防御力
-        newSlime->SetLevel(level);                  // 等级 = 父体当前等级
-        newSlime->SetAgility(agility);              // 灵巧 = 父体当前灵巧
-        newSlime->SetSpeed(speed);                  // 速度 = 父体当前速度
-        newSlime->SetSpellDefense(spellDefense);    // 法防 = 父体当前法防
-        newSlime->SetElementType(elementType);      // 属性 = 父体当前属性
-        newSlime->SetPhysicalResistance(resistance.physicalResistance);   // 物理抗性
-        newSlime->SetMagicalResistance(resistance.magicalResistance);     // 魔法抗性
-        newSlime->SetExperienceReward(experienceReward);   // 经验奖励
-        newSlime->SetGoldReward(goldReward);               // 金币奖励
-        newSlime->SetDropItem(dropItem, dropRate);         // 掉落物品和概率
-
-        // ----- 分裂后，父史莱姆恢复 1/4 最大血量 -----
-        // 比如 maxHp = 45，恢复 45/4 = 11 点血
         int healAmount = maxHp / 4;
         hp += healAmount;
-        if (hp > maxHp) hp = maxHp;     // 不能超过最大血量
+        if (hp > maxHp) hp = maxHp;
 
-        // 打印分裂结果
         std::cout << "  → 分裂出新的 " << newSlime->GetName()
-                  << " (HP: " << newSlime->GetHp() << "/" << newSlime->GetMaxHp() << ")！" << std::endl;
+            << " (HP: " << newSlime->GetHp() << "/" << newSlime->GetMaxHp() << ")" << std::endl;
         std::cout << "  → " << name << " 恢复了 " << healAmount << " 点生命值！" << std::endl;
-
-        // 返回新生成的史莱姆（调用者会把它加入战场）
         return { newSlime };
     }
     else
     {
-        // 血量还够，用弹跳攻击（1.2 倍伤害）
         PerformPhysicalAttack(target, 1.2, " 弹跳攻击！");
         return {};
     }
 }
 
-// ---------- 显示史莱姆信息 ----------
+std::vector<Item*> Slime::GenerateDrops() const
+{
+    std::vector<Item*> drops;
+    if (rand() % 100 < 30)
+        drops.push_back(Potion::CreateSmallHealthPotion());
+    return drops;
+}
+
 void Slime::DisplayInfo() const
 {
     std::cout << "[史莱姆] " << name << " Lv." << level
-              << " | 生命值: " << hp << "/" << maxHp
-              << ", 攻击: " << attackPower
-              << ", 防御: " << defend
-              << ", 速度: " << speed
-              << " | 经验奖励: " << experienceReward
-              << ", 金币: " << goldReward
-              << " | 掉落: " << dropItem
-              << " (" << (dropRate * 100) << "%)" << std::endl;
+        << " | HP:" << hp << "/" << maxHp
+        << " ATK:" << attackPower << " DEF:" << defend
+        << " SPD:" << speed
+        << " | EXP:" << experienceReward << " GOLD:" << goldReward << std::endl;
 }
 
-
-// ================================================================
-//  FireLizard 火焰蜥蜴 - 火属性怪物
-//
-//  属性：
-//    - 攻击力较高（比史莱姆高），防御力较低
-//    - 火属性（克制风，被水克制）
-//    - 攻击方式：火焰吐息（1.3 倍伤害）
-// ================================================================
-
-FireLizard::FireLizard(int level)
-    : Enemy("火焰蜥蜴", 45, 10, 3, level)
+// ========== Goblin 哥布林 ==========
+Goblin::Goblin(int level)
+    : Enemy("哥布林", 25 + level * 4, 6 + level * 2, 2 + level, level)
 {
-    // 根据等级重新计算属性
-    this->maxHp = 35 + level * 4;       // 生命值：比史莱姆少
-    this->hp = this->maxHp;
-    this->attackPower = 7 + level * 3;  // 攻击力：比史莱姆高！
-    this->defend = 1 + level;           // 防御力
-    this->agility = 15 + level * 2;     // 灵巧
-    this->speed = 90;                   // 速度中等
-    this->spellDefense = 3;             // 法防一般
-    this->elementType = ElementType::Fire;  // 火属性！
-
-    // 击杀奖励
-    this->experienceReward = 25 + level * 5;
-    this->goldReward = 15 + level * 3;
-    this->SetDropItem("火焰鳞片", 0.25);    // 25% 概率掉落
+    agility = 15 + level * 2;
+    speed = 90;
+    spellDefense = 3;
+    elementType = ElementType::Earth;
+    experienceReward = 15 + level * 4;
+    goldReward = 8 + level * 2;
+    AddSkill(std::make_shared<PhysicalSkill>("飞刀投掷", 1.3, 5, ElementType::Neutral));
 }
 
-FireLizard::~FireLizard()
+std::vector<std::shared_ptr<Enemy>> Goblin::PerformAction(Character* target)
 {
-}
-
-std::vector<std::shared_ptr<Enemy>> FireLizard::PerformAction(Character* target)
-{
-    // 火焰吐息：1.3 倍伤害
-    PerformPhysicalAttack(target, 1.3, " 火焰吐息！");
+    if (!skills.empty() && (rand() % 2 == 0))   // 50% 概率使用技能
+    {
+        DamageInfo info = skills[0]->ExecuteSkill(this, target);
+        target->TakeDamage(info);
+    }
+    else
+    {
+        PerformPhysicalAttack(target, 1.0, " 挥动小刀！");
+    }
     return {};
 }
 
-void FireLizard::DisplayInfo() const
+std::vector<Item*> Goblin::GenerateDrops() const
 {
-    std::cout << "[火焰蜥蜴] " << name << " Lv." << level
-              << " | 生命值: " << hp << "/" << maxHp
-              << ", 攻击: " << attackPower
-              << ", 防御: " << defend
-              << ", 速度: " << speed
-              << " | 经验奖励: " << experienceReward
-              << ", 金币: " << goldReward
-              << " | 属性: 火"
-              << " | 掉落: " << dropItem
-              << " (" << (dropRate * 100) << "%)" << std::endl;
+    std::vector<Item*> drops;
+    if (rand() % 100 < 20)
+        drops.push_back(Potion::CreateSmallHealthPotion());
+    return drops;
 }
 
-
-// ================================================================
-//  WindSprite 风精灵 - 风属性怪物
-//
-//  属性：
-//    - 速度很快，攻击力中等
-//    - 风属性（克制地，被火克制）
-//    - 攻击方式：风刃（1.2 倍伤害）
-// ================================================================
-
-WindSprite::WindSprite(int level)
-    : Enemy("风精灵", 40, 9, 2, level)
+void Goblin::DisplayInfo() const
 {
-    // 根据等级重新计算属性
-    this->maxHp = 28 + level * 3;       // 生命值：偏少（脆皮）
-    this->hp = this->maxHp;
-    this->attackPower = 6 + level * 2;  // 攻击力中等
-    this->defend = 1 + level;           // 防御力一般
-    this->agility = 25 + level * 3;     // 灵巧高
-    this->speed = 130;                  // 速度最快！
-    this->spellDefense = 4;             // 法防略高
-    this->elementType = ElementType::Wind;  // 风属性！
-
-    // 击杀奖励
-    this->experienceReward = 30 + level * 5;
-    this->goldReward = 12 + level * 2;
-    this->SetDropItem("风之羽毛", 0.3);     // 30% 概率掉落
+    std::cout << "[哥布林] " << name << " Lv." << level
+        << " HP:" << hp << "/" << maxHp
+        << " ATK:" << attackPower << " DEF:" << defend
+        << " EXP:" << experienceReward << " GOLD:" << goldReward << std::endl;
 }
 
-WindSprite::~WindSprite()
+// ========== Skeleton 骷髅兵 ==========
+Skeleton::Skeleton(int level)
+    : Enemy("骷髅兵", 35 + level * 5, 10 + level * 2, 5 + level, level)
 {
+    agility = 10 + level;
+    speed = 70;
+    spellDefense = 6;
+    elementType = ElementType::Neutral;
+    SetPhysicalResistance(0.15);
+    experienceReward = 25 + level * 5;
+    goldReward = 12 + level * 3;
+    AddSkill(std::make_shared<PhysicalSkill>("骨刺", 1.5, 10, ElementType::Neutral));
 }
 
-std::vector<std::shared_ptr<Enemy>> WindSprite::PerformAction(Character* target)
+std::vector<std::shared_ptr<Enemy>> Skeleton::PerformAction(Character* target)
 {
-    // 风刃：1.2 倍伤害
-    PerformPhysicalAttack(target, 1.2, " 风刃攻击！");
+    if (!skills.empty() && (rand() % 3 != 0))   // 2/3 概率使用技能
+    {
+        DamageInfo info = skills[0]->ExecuteSkill(this, target);
+        target->TakeDamage(info);
+    }
+    else
+    {
+        PerformPhysicalAttack(target, 1.0, " 用骨头砸！");
+    }
     return {};
 }
 
-void WindSprite::DisplayInfo() const
+std::vector<Item*> Skeleton::GenerateDrops() const
 {
-    std::cout << "[风精灵] " << name << " Lv." << level
-              << " | 生命值: " << hp << "/" << maxHp
-              << ", 攻击: " << attackPower
-              << ", 防御: " << defend
-              << ", 速度: " << speed
-              << " | 经验奖励: " << experienceReward
-              << ", 金币: " << goldReward
-              << " | 属性: 风"
-              << " | 掉落: " << dropItem
-              << " (" << (dropRate * 100) << "%)" << std::endl;
+    std::vector<Item*> drops;
+    if (rand() % 100 < 25)
+        drops.push_back(Potion::CreateMediumHealthPotion());
+    if (rand() % 100 < 10)
+        drops.push_back(Potion::CreateStrengthPotion());
+    return drops;
+}
+
+void Skeleton::DisplayInfo() const
+{
+    std::cout << "[骷髅兵] " << name << " Lv." << level
+        << " HP:" << hp << "/" << maxHp
+        << " ATK:" << attackPower << " DEF:" << defend
+        << " PHY-RES:" << resistance.physicalResistance * 100 << "%"
+        << " EXP:" << experienceReward << " GOLD:" << goldReward << std::endl;
+}
+
+// ========== DarkMage 暗影法师 ==========
+DarkMage::DarkMage(int level)
+    : Enemy("暗影法师", 20 + level * 3, 4 + level, 1 + level / 2, level)
+{
+    agility = 20 + level * 3;
+    speed = 100;
+    spellDefense = 15;
+    elementType = ElementType::Fire;
+    SetMagicalResistance(0.2);
+    experienceReward = 30 + level * 6;
+    goldReward = 15 + level * 4;
+    AddSkill(std::make_shared<MagicalSkill>("暗影弹", 1.6, 12, 40 + level * 5, ElementType::Fire));
+}
+
+std::vector<std::shared_ptr<Enemy>> DarkMage::PerformAction(Character* target)
+{
+    if (!skills.empty() && (rand() % 2 == 0))   // 50% 概率使用技能
+    {
+        DamageInfo info = skills[0]->ExecuteSkill(this, target);
+        target->TakeDamage(info);
+    }
+    else
+    {
+        PerformPhysicalAttack(target, 1.0, " 用杖敲击！");
+    }
+    return {};
+}
+
+std::vector<Item*> DarkMage::GenerateDrops() const
+{
+    std::vector<Item*> drops;
+    if (rand() % 100 < 30) drops.push_back(Potion::CreateAgilityPotion());
+    if (rand() % 100 < 15) drops.push_back(Weapon::CreateStaff());
+    return drops;
+}
+
+void DarkMage::DisplayInfo() const
+{
+    std::cout << "[暗影法师] " << name << " Lv." << level
+        << " HP:" << hp << "/" << maxHp
+        << " MAG-RES:" << resistance.magicalResistance * 100 << "%"
+        << " EXP:" << experienceReward << " GOLD:" << goldReward << std::endl;
+}
+
+// ========== Boss 巨龙 ==========
+Boss::Boss(int level)
+    : Enemy("巨龙", 80 + level * 10, 20 + level * 3, 10 + level, level)
+{
+    agility = 15 + level * 2;
+    speed = 60;
+    spellDefense = 12;
+    elementType = ElementType::Fire;
+    SetPhysicalResistance(0.25);
+    SetMagicalResistance(0.25);
+    experienceReward = 100 + level * 20;
+    goldReward = 50 + level * 10;
+    AddSkill(std::make_shared<TrueSkill>("龙息", 50, 25));
+    AddSkill(std::make_shared<PhysicalSkill>("撕咬", 2.0, 15, ElementType::Neutral));
+}
+
+std::vector<std::shared_ptr<Enemy>> Boss::PerformAction(Character* target)
+{
+    // 优先使用真实伤害技能，其次物理技能，否则普通攻击
+    if (!skills.empty() && (rand() % 3 != 0))   // 2/3 概率用第一个技能
+    {
+        DamageInfo info = skills[0]->ExecuteSkill(this, target);
+        target->TakeDamage(info);
+    }
+    else if (skills.size() > 1 && (rand() % 2 == 0))   // 剩余情况用第二个技能
+    {
+        DamageInfo info = skills[1]->ExecuteSkill(this, target);
+        target->TakeDamage(info);
+    }
+    else
+    {
+        PerformPhysicalAttack(target, 1.2, " 龙爪猛击！");
+    }
+    return {};
+}
+
+std::vector<Item*> Boss::GenerateDrops() const
+{
+    std::vector<Item*> drops;
+    drops.push_back(Weapon::CreateGreatSword());   // 必掉巨剑
+    drops.push_back(Potion::CreateDefensePotion()); // 必掉护盾药水
+    if (rand() % 100 < 50) drops.push_back(Weapon::CreateShield());
+    return drops;
+}
+
+void Boss::DisplayInfo() const
+{
+    std::cout << "[BOSS] " << name << " Lv." << level
+        << " HP:" << hp << "/" << maxHp
+        << " ATK:" << attackPower << " DEF:" << defend
+        << " PHY-RES:" << resistance.physicalResistance * 100
+        << "% MAG-RES:" << resistance.magicalResistance * 100 << "%"
+        << " EXP:" << experienceReward << " GOLD:" << goldReward << std::endl;
 }
