@@ -1,113 +1,123 @@
 #pragma once
 #include "Character.h"
-#include <string>
+#include "Item.h"
 #include <memory>
 #include <vector>
+#include <string>
 
 // ================================================================
-//  Enemy 类 - 怪物基类（继承自 Character）
-//  比普通角色多了：击杀奖励（经验、金币）、掉落物品
-//  怪物由 AI 控制，不需要玩家手动操作
+//  Enemy 基类 - 所有怪物的父类
 // ================================================================
 class Enemy : public Character
 {
 protected:
-    int experienceReward;       // 击杀这只怪物能获得多少经验值
-    int goldReward;             // 击杀这只怪物能获得多少金币
-    std::string dropItem;       // 掉落物品的名字（比如"史莱姆胶体"）
-    double dropRate;            // 掉落概率（0.0 ~ 1.0，比如 0.3 就是 30% 概率掉落）
+    int experienceReward;
+    int goldReward;
+    std::vector<std::shared_ptr<Skill>> skills;  // 怪物技能列表（新增）
 
 public:
-    // 构造函数：创建一个怪物
     Enemy(const std::string& name, int maxHp, int attackPower, int defend, int level);
-    virtual ~Enemy();
+    virtual ~Enemy() = default;
 
-    // ========== Getter ==========
+    // 奖励
     int GetExperienceReward() const { return experienceReward; }
     int GetGoldReward() const { return goldReward; }
-    std::string GetDropItem() const { return dropItem; }
-    double GetDropRate() const { return dropRate; }
 
-    // ========== Setter ==========
-    void SetExperienceReward(int exp) { experienceReward = exp; }
-    void SetGoldReward(int gold) { goldReward = gold; }
-    void SetDropItem(const std::string& item, double rate) { dropItem = item; dropRate = rate; }
+    // 掉落物（返回动态分配的道具，调用者负责加入背包）
+    virtual std::vector<Item*> GenerateDrops() const { return {}; }
 
-    // ========== AI 行为 ==========
+    // AI 行动（每个怪物必须实现）
+    virtual std::vector<std::shared_ptr<Enemy>> PerformAction(Character* target) = 0;
 
-    // 怪物行动：对目标执行 AI 决定的动作（攻击、分裂等）
-    // 返回值：本次行动新生成的怪物列表（比如史莱姆分裂出的新史莱姆）
-    //         如果没生成新怪物，返回空列表 {}
-    virtual std::vector<std::shared_ptr<Enemy>> PerformAction(Character* target);
+    // 添加技能
+    void AddSkill(std::shared_ptr<Skill> skill) { skills.push_back(skill); }
 
-    // 显示怪物信息（包括经验、金币、掉落等额外信息）
+    // 显示信息
     virtual void DisplayInfo() const override;
 };
 
 // ================================================================
-//  Slime 类 - 史莱姆（继承自 Enemy）
-//  最基础的小怪物，特点是：
-//  1. 血量低于一半时会分裂！一个变两个，非常讨厌
-//  2. 分裂出的子史莱姆继承父史莱姆的当前属性
-//  3. 分裂后父史莱姆会回复 1/4 最大血量
-//  4. 血量高于一半时用"弹跳攻击"（1.2 倍伤害）
+//  Slime 史莱姆（原有，增加掉落生成）
 // ================================================================
 class Slime : public Enemy
 {
 private:
-    int splitHealth;    // 分裂阈值：当前血量低于这个值就会触发分裂
-                        // 默认 = 最大血量的一半
-
+    int splitHealth;
 public:
-    // 构造函数：level 是等级，等级越高史莱姆越强
     Slime(int level = 1);
-    virtual ~Slime();
-
-    // 史莱姆的 AI 行为：
-    //   血量 < splitHealth → 分裂（生成一个新史莱姆，自己回血）
-    //   血量 >= splitHealth → 弹跳攻击（1.2 倍伤害）
-    virtual std::vector<std::shared_ptr<Enemy>> PerformAction(Character* target) override;
-
-    // 显示史莱姆详细信息
-    virtual void DisplayInfo() const override;
+    std::vector<std::shared_ptr<Enemy>> PerformAction(Character* target) override;
+    std::vector<Item*> GenerateDrops() const override;
+    void DisplayInfo() const override;
 };
 
 // ================================================================
-//  FireLizard 类 - 火焰蜥蜴（继承自 Enemy）
-//  火属性怪物，特点是：
-//  1. 攻击力较高，但防御力较低
-//  2. 火属性（被水克制，克制风）
-//  3. 使用"火焰吐息"攻击（1.3 倍伤害）
+//  Goblin 哥布林
+// ================================================================
+class Goblin : public Enemy
+{
+public:
+    Goblin(int level = 1);
+    std::vector<std::shared_ptr<Enemy>> PerformAction(Character* target) override;
+    std::vector<Item*> GenerateDrops() const override;
+    void DisplayInfo() const override;
+};
+
+// ================================================================
+//  Skeleton 骷髅兵
+// ================================================================
+class Skeleton : public Enemy
+{
+public:
+    Skeleton(int level = 1);
+    std::vector<std::shared_ptr<Enemy>> PerformAction(Character* target) override;
+    std::vector<Item*> GenerateDrops() const override;
+    void DisplayInfo() const override;
+};
+
+// ================================================================
+//  DarkMage 暗影法师
+// ================================================================
+class DarkMage : public Enemy
+{
+public:
+    DarkMage(int level = 1);
+    std::vector<std::shared_ptr<Enemy>> PerformAction(Character* target) override;
+    std::vector<Item*> GenerateDrops() const override;
+    void DisplayInfo() const override;
+};
+
+// ================================================================
+//  FireLizard 火蜥蜴
 // ================================================================
 class FireLizard : public Enemy
 {
 public:
-    // 构造函数：level 是等级
     FireLizard(int level = 1);
-    virtual ~FireLizard();
-
-    // 火焰蜥蜴的 AI：简单粗暴的火焰吐息
-    virtual std::vector<std::shared_ptr<Enemy>> PerformAction(Character* target) override;
-
-    virtual void DisplayInfo() const override;
+    std::vector<std::shared_ptr<Enemy>> PerformAction(Character* target) override;
+    std::vector<Item*> GenerateDrops() const override;
+    void DisplayInfo() const override;
 };
 
 // ================================================================
-//  WindSprite 类 - 风精灵（继承自 Enemy）
-//  风属性怪物，特点是：
-//  1. 速度很快，防御力一般
-//  2. 风属性（被火克制，克制地）
-//  3. 使用"风刃"攻击（1.2 倍伤害）
+//  WindSprite 风精灵
 // ================================================================
 class WindSprite : public Enemy
 {
 public:
-    // 构造函数：level 是等级
     WindSprite(int level = 1);
-    virtual ~WindSprite();
+    std::vector<std::shared_ptr<Enemy>> PerformAction(Character* target) override;
+    std::vector<Item*> GenerateDrops() const override;
+    void DisplayInfo() const override;
+};
 
-    // 风精灵的 AI：快速的风刃攻击
-    virtual std::vector<std::shared_ptr<Enemy>> PerformAction(Character* target) override;
-
-    virtual void DisplayInfo() const override;
+// ================================================================
+//  Boss 巨龙
+// ================================================================
+class Boss : public Enemy
+{
+public:
+    Boss(int level = 5);
+    std::vector<std::shared_ptr<Enemy>> PerformAction(Character* target) override;
+    std::vector<Item*> GenerateDrops() const override;
+    void DisplayInfo() const override;
 };

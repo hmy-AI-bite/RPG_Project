@@ -131,7 +131,7 @@ bool BattleSystem::HandleBattleInput(Player* player,
         int itemIdx;
         if (std::cin >> itemIdx && itemIdx > 0)
         {
-            player->GetInventory().UseItem(itemIdx, player);
+            player->GetInventory().UseItem(itemIdx - 1, player);
         }
     }
     break;

@@ -127,18 +127,17 @@ void TestManager::TestElementSystemQuick()
     int totalTests = 0;
     int passCount = 0;
 
-    auto ResetMonster = [](std::shared_ptr<Enemy>& m) {
-        m->SetMaxHp(200);
-        m->SetHp(200);
-    };
-
     auto RunElementTest = [&](const std::string& testName,
                               ElementType atkElem, ElementType defElem,
                               double expectedBonus, const std::string& relation) {
         totalTests++;
         attacker->SetElementType(atkElem);
 
-        auto monster = std::make_shared<Enemy>("测试怪物", 200, 8, 10, 1);
+        auto monster = std::make_shared<Slime>(1);
+        monster->SetMaxHp(200);
+        monster->SetHp(200);
+        monster->SetAttackPower(8);
+        monster->SetDefend(10);
         monster->SetElementType(defElem);
 
         std::cout << "\n--- 子测试 " << totalTests << "：" << testName << " (" << relation << ") ---" << std::endl;
@@ -171,7 +170,8 @@ void TestManager::TestElementSystemQuick()
         if (pass) passCount++;
         std::cout << "  >> " << (pass ? "PASS" : "FAIL") << " <<" << std::endl;
 
-        ResetMonster(monster);
+        monster->SetMaxHp(200);
+        monster->SetHp(200);
     };
 
     RunElementTest("火 → 风", ElementType::Fire, ElementType::Wind, 1.5, "火克风");
